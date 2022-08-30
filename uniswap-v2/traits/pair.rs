@@ -18,12 +18,28 @@ pub trait Pair {
 
     /// Only factory (owner) can access this function
     #[ink(message)]
-    fn initialize(&mut self, token_0: AccountId, token_1: AccountId) -> Result<(), PairError>;
+    fn initialize(
+        &mut self,
+        token_0: AccountId,
+        token_1: AccountId,
+    ) -> Result<(), PairError>;
 
     #[ink(message)]
     fn mint(&mut self, to: AccountId) -> Result<Balance, PairError>;
 
-    fn _mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError>;
+    fn _mint_fee(
+        &mut self,
+        reserve_0: Balance,
+        reserve_1: Balance,
+    ) -> Result<bool, PairError>;
+
+    fn _update(
+        &mut self,
+        balance_0: Balance,
+        balance_1: Balance,
+        reserve_0: Balance,
+        reserve_1: Balance,
+    ) -> Result<(), PairError>;
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -32,8 +48,16 @@ pub enum PairError {
     PSP22Error(PSP22Error),
     OwnableError(OwnableError),
     PausableError(PausableError),
+    InsufficientLiquidityMinted,
+    Overflow,
     SubUnderFlow1,
     SubUnderFlow2,
+    SubUnderFlow3,
+    MulOverFlow1,
+    MulOverFlow2,
+    MulOverFlow3,
+    DivByZero1,
+    DivByZero2,
 }
 
 impl From<OwnableError> for PairError {

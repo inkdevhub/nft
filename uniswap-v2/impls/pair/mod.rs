@@ -1,2 +1,2 @@
-pub mod pair;
 pub mod data;
+pub mod pair;

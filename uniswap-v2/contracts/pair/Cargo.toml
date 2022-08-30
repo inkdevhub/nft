@@ -39,3 +39,9 @@ std = [
     "uniswap_v2/std"
 ]
 ink-as-dependency = []
+
+[profile.dev]
+overflow-checks = false
+
+[profile.release]
+overflow-checks = false

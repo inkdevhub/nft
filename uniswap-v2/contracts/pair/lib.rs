@@ -8,6 +8,7 @@ pub mod pair {
         contracts::{
             ownable::*,
             pausable::*,
+            psp22::extensions::mintable::*,
         },
         traits::Storage,
     };
@@ -20,12 +21,18 @@ pub mod pair {
     #[derive(Default, SpreadAllocate, Storage)]
     pub struct PairContract {
         #[storage_field]
+        psp22: psp22::Data,
+        #[storage_field]
         pause: pausable::Data,
         #[storage_field]
         ownable: ownable::Data,
         #[storage_field]
         pair: data::Data,
     }
+
+    impl PSP22 for PairContract {}
+
+    impl PSP22Mintable for PairContract {}
 
     impl Pausable for PairContract {}
 

@@ -1,4 +1,8 @@
-use openbrush::traits::{AccountId, Balance, Timestamp};
+use openbrush::traits::{
+    AccountId,
+    Balance,
+    Timestamp,
+};
 
 pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
 
