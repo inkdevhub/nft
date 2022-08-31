@@ -12,7 +12,7 @@ pub mod pair {
         contracts::{
             ownable::*,
             pausable::*,
-            psp22::extensions::mintable::*,
+            psp22::*,
         },
         traits::Storage,
     };
@@ -65,8 +65,6 @@ pub mod pair {
     }
 
     impl PSP22 for PairContract {}
-
-    impl PSP22Mintable for PairContract {}
 
     impl Pausable for PairContract {}
 

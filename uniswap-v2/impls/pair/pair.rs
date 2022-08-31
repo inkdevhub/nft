@@ -2,6 +2,7 @@ pub use crate::{
     impls::pair::*,
     traits::pair::*,
 };
+use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::{
         ownable::*,
@@ -19,6 +20,7 @@ use openbrush::{
 };
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
+pub const ZERO_ADDRESS: [u8; 32] = [0; 32];
 
 impl<
         T: Storage<data::Data>
@@ -72,6 +74,7 @@ impl<
                 .checked_sub(MINIMUM_LIQUIDITY)
                 .ok_or(PairError::SubUnderFlow3)?;
             liquidity = sqrt(liq);
+            self._mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
         } else {
             let liquidity_1 = amount_0
                 .checked_mul(total_supply)
@@ -83,10 +86,10 @@ impl<
                 .ok_or(PairError::MulOverFlow3)?
                 .checked_div(reserves.1)
                 .ok_or(PairError::DivByZero2)?;
-            liquidity = min(amount_0, amount_1);
+            liquidity = min(liquidity_1, liquidity_2);
         }
 
-        if liquidity <= 0 {
+        if liquidity == 0 {
             return Err(PairError::InsufficientLiquidityMinted)
         }
 
@@ -107,10 +110,63 @@ impl<
         Ok(liquidity)
     }
 
+    #[modifiers(when_not_paused)]
+    default fn burn(
+        &mut self,
+        to: AccountId,
+    ) -> Result<(Balance, Balance), PairError> {
+        let reserves = self.get_reserves();
+        let contract = Self::env().account_id();
+        let token_0 = self.data::<data::Data>().token_0;
+        let token_1 = self.data::<data::Data>().token_1;
+        let mut balance_0 = PSP22Ref::balance_of(&token_0, contract);
+        let mut balance_1 = PSP22Ref::balance_of(&token_1, contract);
+        let liquidity = self._balance_of(&contract);
+
+        let fee_on = self._mint_fee(reserves.0, reserves.1)?;
+        let total_supply = self.data::<psp22::Data>().supply;
+        let amount_0 = liquidity
+            .checked_mul(balance_0)
+            .ok_or(PairError::MulOverFlow6)?
+            .checked_div(total_supply)
+            .ok_or(PairError::DivByZero3)?;
+        let amount_1 = liquidity
+            .checked_mul(balance_1)
+            .ok_or(PairError::MulOverFlow7)?
+            .checked_div(total_supply)
+            .ok_or(PairError::DivByZero4)?;
+
+        if amount_0 == 0 || amount_0 == 0 {
+            return Err(PairError::InsufficientLiquidityBurned)
+        }
+
+        self._burn_from(contract, liquidity)?;
+
+        self._transfer_from_to(token_0, to, amount_0, Vec::<u8>::new())?;
+        self._transfer_from_to(token_1, to, amount_1, Vec::<u8>::new())?;
+
+        balance_0 = PSP22Ref::balance_of(&token_0, contract);
+        balance_1 = PSP22Ref::balance_of(&token_1, contract);
+
+        self._update(balance_0, balance_1, reserves.0, reserves.1)?;
+
+        if fee_on {
+            let k = reserves
+                .0
+                .checked_mul(reserves.1)
+                .ok_or(PairError::MulOverFlow5)?;
+            self.data::<data::Data>().k_last = k;
+        }
+
+        self._emit_burn_event(Self::env().caller(), amount_0, amount_1, to);
+
+        Ok((amount_0, amount_1))
+    }
+
     default fn _mint_fee(
         &mut self,
-        reserve_0: Balance,
-        reserve_1: Balance,
+        _reserve_0: Balance,
+        _reserve_1: Balance,
     ) -> Result<bool, PairError> {
         // TODO update when factory contract is done
         Ok(true)

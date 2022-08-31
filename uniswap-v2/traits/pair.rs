@@ -27,6 +27,9 @@ pub trait Pair {
     #[ink(message)]
     fn mint(&mut self, to: AccountId) -> Result<Balance, PairError>;
 
+    #[ink(message)]
+    fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError>;
+
     fn _mint_fee(
         &mut self,
         reserve_0: Balance,
@@ -72,6 +75,7 @@ pub enum PairError {
     OwnableError(OwnableError),
     PausableError(PausableError),
     InsufficientLiquidityMinted,
+    InsufficientLiquidityBurned,
     Overflow,
     SubUnderFlow1,
     SubUnderFlow2,
@@ -81,8 +85,12 @@ pub enum PairError {
     MulOverFlow3,
     MulOverFlow4,
     MulOverFlow5,
+    MulOverFlow6,
+    MulOverFlow7,
     DivByZero1,
     DivByZero2,
+    DivByZero3,
+    DivByZero4,
 }
 
 impl From<OwnableError> for PairError {
