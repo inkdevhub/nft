@@ -54,10 +54,8 @@ impl<
     default fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
         let reserves = self.get_reserves();
         let contract = Self::env().account_id();
-        let balance_0 =
-            PSP22Ref::balance_of(&self.data::<data::Data>().token_0, contract);
-        let balance_1 =
-            PSP22Ref::balance_of(&self.data::<data::Data>().token_1, contract);
+        let balance_0 = PSP22Ref::balance_of(&self.data::<data::Data>().token_0, contract);
+        let balance_1 = PSP22Ref::balance_of(&self.data::<data::Data>().token_1, contract);
         let amount_0 = balance_0
             .checked_sub(reserves.0)
             .ok_or(PairError::SubUnderFlow1)?;
@@ -113,10 +111,7 @@ impl<
     }
 
     #[modifiers(when_not_paused)]
-    default fn burn(
-        &mut self,
-        to: AccountId,
-    ) -> Result<(Balance, Balance), PairError> {
+    default fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError> {
         let reserves = self.get_reserves();
         let contract = Self::env().account_id();
         let token_0 = self.data::<data::Data>().token_0;
@@ -187,20 +182,10 @@ impl<
             return Err(PairError::InvalidTo)
         }
         if amount_0_out > 0 {
-            self._transfer_from_to(
-                token_0,
-                to,
-                amount_0_out,
-                Vec::<u8>::new(),
-            )?;
+            self._transfer_from_to(token_0, to, amount_0_out, Vec::<u8>::new())?;
         }
         if amount_1_out > 0 {
-            self._transfer_from_to(
-                token_1,
-                to,
-                amount_1_out,
-                Vec::<u8>::new(),
-            )?;
+            self._transfer_from_to(token_1, to, amount_1_out, Vec::<u8>::new())?;
         }
         let contract = Self::env().account_id();
         let balance_0 = PSP22Ref::balance_of(&token_0, contract);
@@ -247,16 +232,12 @@ impl<
         let balance_0_adjusted = balance_0
             .checked_mul(1000)
             .ok_or(PairError::MulOverFlow8)?
-            .checked_sub(
-                amount_0_in.checked_mul(3).ok_or(PairError::MulOverFlow9)?,
-            )
+            .checked_sub(amount_0_in.checked_mul(3).ok_or(PairError::MulOverFlow9)?)
             .ok_or(PairError::SubUnderFlow10)?;
         let balance_1_adjusted = balance_1
             .checked_mul(1000)
             .ok_or(PairError::MulOverFlow10)?
-            .checked_sub(
-                amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow11)?,
-            )
+            .checked_sub(amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow11)?)
             .ok_or(PairError::SubUnderFlow11)?;
 
         if balance_0_adjusted
@@ -311,10 +292,8 @@ impl<
             let price_cumulative_last_1 = (reserve_0 / reserve_1)
                 .checked_mul(time_elapsed as u128)
                 .ok_or(PairError::MulOverFlow4)?;
-            self.data::<data::Data>().price_0_cumulative_last =
-                price_cumulative_last_0;
-            self.data::<data::Data>().price_1_cumulative_last =
-                price_cumulative_last_1;
+            self.data::<data::Data>().price_0_cumulative_last = price_cumulative_last_0;
+            self.data::<data::Data>().price_1_cumulative_last = price_cumulative_last_1;
         }
         self.data::<data::Data>().reserve_0 = balance_0;
         self.data::<data::Data>().reserve_1 = balance_1;
@@ -323,12 +302,7 @@ impl<
         Ok(())
     }
 
-    default fn _emit_mint_event(
-        &self,
-        _sender: AccountId,
-        _amount_0: Balance,
-        _amount_1: Balance,
-    ) {
+    default fn _emit_mint_event(&self, _sender: AccountId, _amount_0: Balance, _amount_1: Balance) {
     }
     default fn _emit_burn_event(
         &self,

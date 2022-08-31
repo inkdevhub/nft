@@ -71,12 +71,7 @@ pub mod pair {
     impl Ownable for PairContract {}
 
     impl Pair for PairContract {
-        fn _emit_mint_event(
-            &self,
-            sender: AccountId,
-            amount_0: Balance,
-            amount_1: Balance,
-        ) {
+        fn _emit_mint_event(&self, sender: AccountId, amount_0: Balance, amount_1: Balance) {
             self.env().emit_event(Mint {
                 sender,
                 amount_0,
