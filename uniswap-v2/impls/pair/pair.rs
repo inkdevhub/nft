@@ -68,8 +68,7 @@ impl<
         if total_supply == 0 {
             let liq = amount_0
                 .checked_mul(amount_1)
-                .ok_or(PairError::MulOverFlow1)
-                .unwrap()
+                .ok_or(PairError::MulOverFlow1)?
                 .checked_sub(MINIMUM_LIQUIDITY)
                 .ok_or(PairError::SubUnderFlow3)?;
             liquidity = sqrt(liq);
@@ -81,8 +80,7 @@ impl<
                 .ok_or(PairError::DivByZero1)?;
             let liquidity_2 = amount_1
                 .checked_mul(total_supply)
-                .ok_or(PairError::MulOverFlow3)
-                .unwrap()
+                .ok_or(PairError::MulOverFlow3)?
                 .checked_div(reserves.1)
                 .ok_or(PairError::DivByZero2)?;
             liquidity = min(amount_0, amount_1);
