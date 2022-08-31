@@ -92,7 +92,19 @@ impl<
 
         self._mint(to, liquidity)?;
 
-        Ok(amount_1)
+        self._update(balance_0, balance_1, reserves.0, reserves.1)?;
+
+        if fee_on {
+            let k = reserves
+                .0
+                .checked_mul(reserves.1)
+                .ok_or(PairError::MulOverFlow5)?;
+            self.data::<data::Data>().k_last = k;
+        }
+
+        self._emit_mint_event(Self::env().caller(), amount_0, amount_1);
+
+        Ok(liquidity)
     }
 
     default fn _mint_fee(
@@ -114,8 +126,51 @@ impl<
         if balance_0 == u128::MAX || balance_1 == u128::MAX {
             return Err(PairError::Overflow)
         }
+        let now = Self::env().block_timestamp();
+        let time_elapsed = now - self.data::<data::Data>().block_timestamp_last;
+        if time_elapsed > 0 && reserve_0 != 0 && reserve_1 != 0 {
+            let price_cumulative_last_0 = (reserve_1 / reserve_0)
+                .checked_mul(time_elapsed as u128)
+                .ok_or(PairError::MulOverFlow4)?;
+            let price_cumulative_last_1 = (reserve_0 / reserve_1)
+                .checked_mul(time_elapsed as u128)
+                .ok_or(PairError::MulOverFlow4)?;
+            self.data::<data::Data>().price_0_cumulative_last =
+                price_cumulative_last_0;
+            self.data::<data::Data>().price_1_cumulative_last =
+                price_cumulative_last_1;
+        }
+        self.data::<data::Data>().reserve_0 = balance_0;
+        self.data::<data::Data>().reserve_1 = balance_1;
+        self.data::<data::Data>().block_timestamp_last = now;
 
         Ok(())
+    }
+
+    default fn _emit_mint_event(
+        &self,
+        _sender: AccountId,
+        _amount_0: Balance,
+        _amount_1: Balance,
+    ) {
+    }
+    default fn _emit_burn_event(
+        &self,
+        _sender: AccountId,
+        _amount_0: Balance,
+        _amount_1: Balance,
+        _to: AccountId,
+    ) {
+    }
+    default fn _emit_swap_event(
+        &self,
+        _sender: AccountId,
+        _amount_0_in: Balance,
+        _amount_1_in: Balance,
+        _amount_0_out: Balance,
+        _amount_1_out: Balance,
+        _to: AccountId,
+    ) {
     }
 }
 

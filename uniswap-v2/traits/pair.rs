@@ -40,6 +40,29 @@ pub trait Pair {
         reserve_0: Balance,
         reserve_1: Balance,
     ) -> Result<(), PairError>;
+
+    fn _emit_mint_event(
+        &self,
+        _sender: AccountId,
+        _amount_0: Balance,
+        _amount_1: Balance,
+    );
+    fn _emit_burn_event(
+        &self,
+        _sender: AccountId,
+        _amount_0: Balance,
+        _amount_1: Balance,
+        _to: AccountId,
+    );
+    fn _emit_swap_event(
+        &self,
+        _sender: AccountId,
+        _amount_0_in: Balance,
+        _amount_1_in: Balance,
+        _amount_0_out: Balance,
+        _amount_1_out: Balance,
+        _to: AccountId,
+    );
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -56,6 +79,8 @@ pub enum PairError {
     MulOverFlow1,
     MulOverFlow2,
     MulOverFlow3,
+    MulOverFlow4,
+    MulOverFlow5,
     DivByZero1,
     DivByZero2,
 }
