@@ -20,7 +20,9 @@ use openbrush::{
 };
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
-pub const ZERO_ADDRESS: [u8; 32] = [0; 32];
+// Zero Adress [0; 32] will prevent us from calling default fn of psps
+// It is possible to override these functions but it is not needed it this case
+pub const ZERO_ADDRESS: [u8; 32] = [1; 32];
 
 impl<
         T: Storage<data::Data>
@@ -66,7 +68,7 @@ impl<
         let fee_on = self._mint_fee(reserves.0, reserves.1)?;
         let total_supply = self.data::<psp22::Data>().supply;
 
-        let mut liquidity;
+        let liquidity;
         if total_supply == 0 {
             let liq = amount_0
                 .checked_mul(amount_1)
@@ -161,6 +163,124 @@ impl<
         self._emit_burn_event(Self::env().caller(), amount_0, amount_1, to);
 
         Ok((amount_0, amount_1))
+    }
+
+    #[modifiers(when_not_paused)]
+    fn swap(
+        &mut self,
+        amount_0_out: Balance,
+        amount_1_out: Balance,
+        to: AccountId,
+    ) -> Result<(), PairError> {
+        if amount_0_out == 0 && amount_1_out == 0 {
+            return Err(PairError::InsufficientOutputAmount)
+        }
+        let reserves = self.get_reserves();
+        if amount_0_out >= reserves.0 || amount_1_out >= reserves.1 {
+            return Err(PairError::InsufficientLiquidity)
+        }
+
+        let token_0 = self.data::<data::Data>().token_0;
+        let token_1 = self.data::<data::Data>().token_1;
+
+        if to == token_0 || to == token_1 {
+            return Err(PairError::InvalidTo)
+        }
+        if amount_0_out > 0 {
+            self._transfer_from_to(
+                token_0,
+                to,
+                amount_0_out,
+                Vec::<u8>::new(),
+            )?;
+        }
+        if amount_1_out > 0 {
+            self._transfer_from_to(
+                token_1,
+                to,
+                amount_1_out,
+                Vec::<u8>::new(),
+            )?;
+        }
+        let contract = Self::env().account_id();
+        let balance_0 = PSP22Ref::balance_of(&token_0, contract);
+        let balance_1 = PSP22Ref::balance_of(&token_1, contract);
+
+        let amount_0_in = if balance_0
+            > reserves
+                .0
+                .checked_sub(amount_0_out)
+                .ok_or(PairError::SubUnderFlow4)?
+        {
+            balance_0
+                .checked_sub(
+                    reserves
+                        .0
+                        .checked_sub(amount_0_out)
+                        .ok_or(PairError::SubUnderFlow5)?,
+                )
+                .ok_or(PairError::SubUnderFlow6)?
+        } else {
+            0
+        };
+        let amount_1_in = if balance_1
+            > reserves
+                .1
+                .checked_sub(amount_1_out)
+                .ok_or(PairError::SubUnderFlow7)?
+        {
+            balance_1
+                .checked_sub(
+                    reserves
+                        .1
+                        .checked_sub(amount_1_out)
+                        .ok_or(PairError::SubUnderFlow8)?,
+                )
+                .ok_or(PairError::SubUnderFlow9)?
+        } else {
+            0
+        };
+        if amount_0_in == 0 && amount_1_in == 0 {
+            return Err(PairError::InsufficientInputAmount)
+        }
+
+        let balance_0_adjusted = balance_0
+            .checked_mul(1000)
+            .ok_or(PairError::MulOverFlow8)?
+            .checked_sub(
+                amount_0_in.checked_mul(3).ok_or(PairError::MulOverFlow9)?,
+            )
+            .ok_or(PairError::SubUnderFlow10)?;
+        let balance_1_adjusted = balance_1
+            .checked_mul(1000)
+            .ok_or(PairError::MulOverFlow10)?
+            .checked_sub(
+                amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow11)?,
+            )
+            .ok_or(PairError::SubUnderFlow11)?;
+
+        if balance_0_adjusted
+            .checked_mul(balance_1_adjusted)
+            .ok_or(PairError::MulOverFlow12)?
+            < reserves
+                .0
+                .checked_mul(reserves.1)
+                .ok_or(PairError::MulOverFlow13)?
+        {
+            return Err(PairError::K)
+        }
+
+        self._update(balance_0, balance_1, reserves.0, reserves.1)?;
+
+        self._emit_swap_event(
+            Self::env().caller(),
+            amount_0_in,
+            amount_1_in,
+            amount_0_out,
+            amount_1_out,
+            to,
+        );
+        Ok(())
     }
 
     default fn _mint_fee(
