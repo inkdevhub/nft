@@ -17,11 +17,11 @@ use openbrush::{
         Balance,
         Storage,
         Timestamp,
+        ZERO_ADDRESS,
     },
 };
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
-pub const ZERO_ADDRESS: [u8; 32] = [0; 32];
 
 impl<
         T: Storage<data::Data>

@@ -1,6 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
+pub use self::pair::{
+    PairContract,
+    PairContractRef,
+};
+
 #[openbrush::contract]
 pub mod pair {
     use ink_lang::codegen::{

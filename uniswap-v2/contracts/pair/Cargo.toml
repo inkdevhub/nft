@@ -21,7 +21,10 @@ uniswap_v2 = { path = "../..", default-features = false }
 [lib]
 name = "pair_contract"
 path = "lib.rs"
-crate-type = ["cdylib"]
+crate-type = [
+    "cdylib",
+    "rlib"
+]
 
 [features]
 default = ["std"]

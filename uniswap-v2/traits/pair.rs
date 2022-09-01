@@ -11,6 +11,9 @@ use openbrush::{
     },
 };
 
+#[openbrush::wrapper]
+pub type PairRef = dyn Pair;
+
 #[openbrush::trait_definition]
 pub trait Pair {
     #[ink(message)]
