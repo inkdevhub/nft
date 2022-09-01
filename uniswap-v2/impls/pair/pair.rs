@@ -2,6 +2,7 @@ pub use crate::{
     impls::pair::*,
     traits::pair::*,
 };
+use ink_env::CallFlags;
 use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::{
@@ -20,9 +21,7 @@ use openbrush::{
 };
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
-// Zero Adress [0; 32] will prevent us from calling default fn of psps
-// It is possible to override these functions but it is not needed it this case
-pub const ZERO_ADDRESS: [u8; 32] = [1; 32];
+pub const ZERO_ADDRESS: [u8; 32] = [0; 32];
 
 impl<
         T: Storage<data::Data>
@@ -139,8 +138,8 @@ impl<
 
         self._burn_from(contract, liquidity)?;
 
-        self._transfer_from_to(token_0, to, amount_0, Vec::<u8>::new())?;
-        self._transfer_from_to(token_1, to, amount_1, Vec::<u8>::new())?;
+        self._safe_transfer(token_0, to, amount_0)?;
+        self._safe_transfer(token_1, to, amount_1)?;
 
         balance_0 = PSP22Ref::balance_of(&token_0, contract);
         balance_1 = PSP22Ref::balance_of(&token_1, contract);
@@ -182,10 +181,10 @@ impl<
             return Err(PairError::InvalidTo)
         }
         if amount_0_out > 0 {
-            self._transfer_from_to(token_0, to, amount_0_out, Vec::<u8>::new())?;
+            self._safe_transfer(token_0, to, amount_0_out)?;
         }
         if amount_1_out > 0 {
-            self._transfer_from_to(token_1, to, amount_1_out, Vec::<u8>::new())?;
+            self._safe_transfer(token_1, to, amount_1_out)?;
         }
         let contract = Self::env().account_id();
         let balance_0 = PSP22Ref::balance_of(&token_0, contract);
@@ -261,6 +260,57 @@ impl<
             amount_1_out,
             to,
         );
+        Ok(())
+    }
+
+    #[modifiers(when_not_paused)]
+    fn skim(&mut self, to: AccountId) -> Result<(), PairError> {
+        let contract = Self::env().account_id();
+        let reserve_0 = self.data::<data::Data>().reserve_0;
+        let reserve_1 = self.data::<data::Data>().reserve_1;
+        let token_0 = self.data::<data::Data>().token_0;
+        let token_1 = self.data::<data::Data>().token_1;
+        let balance_0 = PSP22Ref::balance_of(&token_0, contract);
+        let balance_1 = PSP22Ref::balance_of(&token_1, contract);
+        self._safe_transfer(
+            token_0,
+            to,
+            balance_0
+                .checked_sub(reserve_0)
+                .ok_or(PairError::SubUnderFlow12)?,
+        )?;
+        self._safe_transfer(
+            token_1,
+            to,
+            balance_1
+                .checked_sub(reserve_1)
+                .ok_or(PairError::SubUnderFlow13)?,
+        )?;
+        Ok(())
+    }
+
+    #[modifiers(when_not_paused)]
+    fn sync(&mut self) -> Result<(), PairError> {
+        let contract = Self::env().account_id();
+        let reserve_0 = self.data::<data::Data>().reserve_0;
+        let reserve_1 = self.data::<data::Data>().reserve_1;
+        let token_0 = self.data::<data::Data>().token_0;
+        let token_1 = self.data::<data::Data>().token_1;
+        let balance_0 = PSP22Ref::balance_of(&token_0, contract);
+        let balance_1 = PSP22Ref::balance_of(&token_1, contract);
+        self._update(balance_0, balance_1, reserve_0, reserve_1)
+    }
+
+    fn _safe_transfer(
+        &mut self,
+        token: AccountId,
+        to: AccountId,
+        value: Balance,
+    ) -> Result<(), PairError> {
+        PSP22Ref::transfer_builder(&token, to, value, Vec::<u8>::new())
+            .call_flags(CallFlags::default().set_allow_reentry(true))
+            .fire()
+            .unwrap()?;
         Ok(())
     }
 

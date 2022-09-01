@@ -12,7 +12,10 @@ pub mod pair {
         contracts::{
             ownable::*,
             pausable::*,
-            psp22::*,
+            psp22::{
+                Internal,
+                *,
+            },
         },
         traits::Storage,
     };
@@ -65,6 +68,31 @@ pub mod pair {
     }
 
     impl PSP22 for PairContract {}
+
+    impl Internal for PairContract {
+        fn _mint(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
+            let mut new_balance = self._balance_of(&account);
+            new_balance += amount;
+            self.psp22.balances.insert(&account, &new_balance);
+            self.psp22.supply += amount;
+            self._emit_transfer_event(None, Some(account), amount);
+            Ok(())
+        }
+
+        fn _burn_from(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
+            let mut from_balance = self._balance_of(&account);
+
+            if from_balance < amount {
+                return Err(PSP22Error::InsufficientBalance)
+            }
+
+            from_balance -= amount;
+            self.psp22.balances.insert(&account, &from_balance);
+            self.psp22.supply -= amount;
+            self._emit_transfer_event(Some(account), None, amount);
+            Ok(())
+        }
+    }
 
     impl Pausable for PairContract {}
 

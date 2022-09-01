@@ -34,6 +34,19 @@ pub trait Pair {
         to: AccountId,
     ) -> Result<(), PairError>;
 
+    #[ink(message)]
+    fn skim(&mut self, to: AccountId) -> Result<(), PairError>;
+
+    #[ink(message)]
+    fn sync(&mut self) -> Result<(), PairError>;
+
+    fn _safe_transfer(
+        &mut self,
+        token: AccountId,
+        to: AccountId,
+        value: Balance,
+    ) -> Result<(), PairError>;
+
     fn _mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError>;
 
     fn _update(
@@ -75,6 +88,7 @@ pub enum PairError {
     InsufficientOutputAmount,
     InsufficientLiquidity,
     InsufficientInputAmount,
+    SafeTransferFailed,
     InvalidTo,
     Overflow,
     SubUnderFlow1,
@@ -88,6 +102,8 @@ pub enum PairError {
     SubUnderFlow9,
     SubUnderFlow10,
     SubUnderFlow11,
+    SubUnderFlow12,
+    SubUnderFlow13,
     MulOverFlow1,
     MulOverFlow2,
     MulOverFlow3,
