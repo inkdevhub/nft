@@ -3,14 +3,7 @@
 
 #[openbrush::contract]
 pub mod factory {
-    use ink_lang::{
-        codegen::{
-            EmitEvent,
-            Env,
-        },
-        reflect::ContractEventBase,
-        ToAccountId,
-    };
+    use ink_lang::ToAccountId;
     use ink_storage::traits::SpreadAllocate;
     use openbrush::traits::{
         Storage,
@@ -21,7 +14,6 @@ pub mod factory {
         impls::factory::*,
         traits::factory::*,
     };
-    type BaseEvent = <FactoryContract as ContractEventBase>::Type;
 
     #[ink(event)]
     pub struct PairCreated {
