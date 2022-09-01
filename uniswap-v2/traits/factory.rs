@@ -14,6 +14,8 @@ pub trait Factory {
     ) -> Result<AccountId, FactoryError>;
 
     fn _instantiate_pair(&mut self, salt_bytes: &[u8]) -> AccountId;
+
+    fn fee_to(&self) -> AccountId;
 }
 
 #[openbrush::trait_definition]

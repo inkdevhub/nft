@@ -8,15 +8,20 @@ pub mod factory {
             EmitEvent,
             Env,
         },
+        reflect::ContractEventBase,
         ToAccountId,
     };
     use ink_storage::traits::SpreadAllocate;
-    use openbrush::traits::Storage;
+    use openbrush::traits::{
+        Storage,
+        ZERO_ADDRESS,
+    };
     use pair_contract::pair::PairContractRef;
     use uniswap_v2::{
         impls::factory::*,
         traits::factory::*,
     };
+    type BaseEvent = <FactoryContract as ContractEventBase>::Type;
 
     #[ink(event)]
     pub struct PairCreated {
@@ -51,17 +56,18 @@ pub mod factory {
     impl Internal for FactoryContract {
         fn _emit_create_pair_event(
             &self,
-            token_0: AccountId,
-            token_1: AccountId,
-            pair: AccountId,
-            pair_len: u64,
+            _token_0: AccountId,
+            _token_1: AccountId,
+            _pair: AccountId,
+            _pair_len: u64,
         ) {
-            self.env().emit_event(PairCreated {
-                token_0,
-                token_1,
-                pair,
-                pair_len,
-            })
+            // TODO fix compilation
+            // self.env().emit_event(PairCreated {
+            //     token_0,
+            //     token_1,
+            //     pair,
+            //     pair_len,
+            // })
         }
     }
 
@@ -70,6 +76,7 @@ pub mod factory {
         pub fn new(fee_to_setter: AccountId) -> Self {
             ink_lang::codegen::initialize_contract(|instance: &mut Self| {
                 instance.factory.fee_to_setter = fee_to_setter;
+                instance.factory.fee_to = ZERO_ADDRESS.into();
             })
         }
     }

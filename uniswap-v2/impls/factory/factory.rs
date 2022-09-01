@@ -51,4 +51,8 @@ impl<T: Storage<data::Data>> Factory for T {
         // need to be overridden in contract
         unimplemented!()
     }
+
+    fn fee_to(&self) -> AccountId {
+        self.data::<data::Data>().fee_to
+    }
 }
