@@ -1,17 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-pub use self::pair::{
-    PairContract,
-    PairContractRef,
-};
-
 #[openbrush::contract]
 pub mod pair {
     use ink_lang::codegen::{
         EmitEvent,
         Env,
     };
+    use ink_prelude::vec::Vec;
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::{
@@ -72,9 +68,32 @@ pub mod pair {
         pair: data::Data,
     }
 
-    impl PSP22 for PairContract {}
+    impl PSP22 for PairContract {
+        // fn transfer_from(
+        //     &mut self,
+        //     from: AccountId,
+        //     to: AccountId,
+        //     value: Balance,
+        //     data: Vec<u8>,
+        // ) -> Result<(), PSP22Error> {
+        //     let caller = self.env().caller();
+        //     let allowance = self._allowance(&from, &caller);
+        //
+        //     // In uniswapv2 max allowance never decrease
+        //     if allowance != u128::MAX {
+        //         if allowance < value {
+        //             return Err(PSP22Error::InsufficientAllowance)
+        //         }
+        //
+        //         self._approve_from_to(from, caller, allowance - value)?;
+        //     }
+        //     self._transfer_from_to(from, to, value, data)?;
+        //     Ok(())
+        // }
+    }
 
     impl Internal for PairContract {
+        // in uniswapv2 no check for zero account
         fn _mint(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
             let mut new_balance = self._balance_of(&account);
             new_balance += amount;
@@ -95,6 +114,38 @@ pub mod pair {
             self.psp22.balances.insert(&account, &from_balance);
             self.psp22.supply -= amount;
             self._emit_transfer_event(Some(account), None, amount);
+            Ok(())
+        }
+
+        fn _approve_from_to(
+            &mut self,
+            owner: AccountId,
+            spender: AccountId,
+            amount: Balance,
+        ) -> Result<(), PSP22Error> {
+            self.psp22.allowances.insert(&(&owner, &spender), &amount);
+            self._emit_approval_event(owner, spender, amount);
+            Ok(())
+        }
+
+        fn _transfer_from_to(
+            &mut self,
+            from: AccountId,
+            to: AccountId,
+            amount: Balance,
+            _data: Vec<u8>,
+        ) -> Result<(), PSP22Error> {
+            let from_balance = self._balance_of(&from);
+
+            if from_balance < amount {
+                return Err(PSP22Error::InsufficientBalance)
+            }
+
+            self.psp22.balances.insert(&from, &(from_balance - amount));
+            let to_balance = self._balance_of(&to);
+            self.psp22.balances.insert(&to, &(to_balance + amount));
+
+            self._emit_transfer_event(Some(from), Some(to), amount);
             Ok(())
         }
     }

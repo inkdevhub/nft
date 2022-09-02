@@ -4,9 +4,9 @@ import { expect } from "./setup/chai";
 import { buildTx } from '@redspot/patract/buildTx'
 const { api } = network
 
-describe('PAIR', () => {
+describe('FACTORY', () => {
     async function setup() {
-        return await setupContract('pair_contract', 'new')
+        return await setupContract('factory_contract', 'new')
     }
 
     it('e', async () => {
