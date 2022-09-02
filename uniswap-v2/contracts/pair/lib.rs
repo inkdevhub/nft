@@ -69,27 +69,28 @@ pub mod pair {
     }
 
     impl PSP22 for PairContract {
-        // fn transfer_from(
-        //     &mut self,
-        //     from: AccountId,
-        //     to: AccountId,
-        //     value: Balance,
-        //     data: Vec<u8>,
-        // ) -> Result<(), PSP22Error> {
-        //     let caller = self.env().caller();
-        //     let allowance = self._allowance(&from, &caller);
-        //
-        //     // In uniswapv2 max allowance never decrease
-        //     if allowance != u128::MAX {
-        //         if allowance < value {
-        //             return Err(PSP22Error::InsufficientAllowance)
-        //         }
-        //
-        //         self._approve_from_to(from, caller, allowance - value)?;
-        //     }
-        //     self._transfer_from_to(from, to, value, data)?;
-        //     Ok(())
-        // }
+        #[ink(message)]
+        fn transfer_from(
+            &mut self,
+            from: AccountId,
+            to: AccountId,
+            value: Balance,
+            data: Vec<u8>,
+        ) -> Result<(), PSP22Error> {
+            let caller = self.env().caller();
+            let allowance = self._allowance(&from, &caller);
+
+            // In uniswapv2 max allowance never decrease
+            if allowance != u128::MAX {
+                if allowance < value {
+                    return Err(PSP22Error::InsufficientAllowance)
+                }
+
+                self._approve_from_to(from, caller, allowance - value)?;
+            }
+            self._transfer_from_to(from, to, value, data)?;
+            Ok(())
+        }
     }
 
     impl Internal for PairContract {

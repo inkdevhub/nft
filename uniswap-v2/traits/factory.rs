@@ -15,7 +15,17 @@ pub trait Factory {
 
     fn _instantiate_pair(&mut self, salt_bytes: &[u8]) -> AccountId;
 
+    #[ink(message)]
+    fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError>;
+
+    #[ink(message)]
+    fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), FactoryError>;
+
+    #[ink(message)]
     fn fee_to(&self) -> AccountId;
+
+    #[ink(message)]
+    fn fee_to_setter(&self) -> AccountId;
 }
 
 #[openbrush::trait_definition]
@@ -33,6 +43,7 @@ pub trait Internal {
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FactoryError {
     PairError(PairError),
+    CallerIsNotFeeSetter,
     ZeroAddress,
     IdenticalAddresses,
 }

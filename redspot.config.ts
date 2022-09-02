@@ -8,7 +8,7 @@ export default {
     contract: {
         ink: {
             toolchain: 'nightly',
-            sources: ['uniswap-v2/contracts']
+            sources: ['uniswap-v2/contracts/**']
         }
     },
     networks: {

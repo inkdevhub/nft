@@ -8,9 +8,4 @@ describe('PAIR', () => {
     async function setup() {
         return await setupContract('pair_contract', 'new')
     }
-
-    it('e', async () => {
-        const { contract } = await setup()
-
-    })
 })

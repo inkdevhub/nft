@@ -3,10 +3,14 @@ pub use crate::{
     impls::factory::*,
     traits::factory::*,
 };
-use openbrush::traits::{
-    AccountId,
-    Storage,
-    ZERO_ADDRESS,
+use openbrush::{
+    modifier_definition,
+    modifiers,
+    traits::{
+        AccountId,
+        Storage,
+        ZERO_ADDRESS,
+    },
 };
 
 impl<T: Storage<data::Data>> Factory for T {
@@ -52,7 +56,36 @@ impl<T: Storage<data::Data>> Factory for T {
         unimplemented!()
     }
 
-    fn fee_to(&self) -> AccountId {
+    #[modifiers(only_fee_setter)]
+    default fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError> {
+        self.data::<data::Data>().fee_to = fee_to;
+        Ok(())
+    }
+
+    #[modifiers(only_fee_setter)]
+    default fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), FactoryError> {
+        self.data::<data::Data>().fee_to_setter = fee_to_setter;
+        Ok(())
+    }
+
+    default fn fee_to(&self) -> AccountId {
         self.data::<data::Data>().fee_to
     }
+
+    default fn fee_to_setter(&self) -> AccountId {
+        self.data::<data::Data>().fee_to_setter
+    }
+}
+
+#[modifier_definition]
+pub fn only_fee_setter<T, F, R, E>(instance: &mut T, body: F) -> Result<R, E>
+where
+    T: Storage<data::Data>,
+    F: FnOnce(&mut T) -> Result<R, E>,
+    E: From<FactoryError>,
+{
+    if instance.data().fee_to_setter != T::env().caller() {
+        return Err(From::from(FactoryError::CallerIsNotFeeSetter))
+    }
+    body(instance)
 }
