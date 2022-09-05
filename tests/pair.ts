@@ -25,7 +25,7 @@ describe('PAIR', () => {
             }
         }
 
-        it('mit', async () => {
+        it('mint', async () => {
             const { contract, wallet } = await setup()
 
             const zero_address = "0x0000000000000000000000000000000000000000000000000000000000000000"

@@ -3,7 +3,6 @@
 
 #[openbrush::contract]
 pub mod token {
-    use ink_lang as ink;
     use ink_prelude::string::String;
     use openbrush::{
         contracts::psp22::extensions::metadata::*,
