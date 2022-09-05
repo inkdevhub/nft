@@ -1,10 +1,7 @@
 import {getWallet, setupContract} from './helper'
-import { network } from 'redspot'
 import { expect } from "chai";
 import { encodeAddress } from "@polkadot/keyring"
-import { buildTx } from '@redspot/patract/buildTx'
 import * as BN from "bn.js";
-const { api } = network
 
 describe('FACTORY', () => {
     async function setup() {

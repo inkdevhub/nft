@@ -301,7 +301,7 @@ impl<
         self._update(balance_0, balance_1, reserve_0, reserve_1)
     }
 
-    fn _safe_transfer(
+    default fn _safe_transfer(
         &mut self,
         token: AccountId,
         to: AccountId,

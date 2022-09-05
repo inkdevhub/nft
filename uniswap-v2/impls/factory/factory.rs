@@ -14,11 +14,11 @@ use openbrush::{
 };
 
 impl<T: Storage<data::Data>> Factory for T {
-    fn all_pair_length(&self) -> u64 {
+    default fn all_pair_length(&self) -> u64 {
         self.data::<data::Data>().all_pairs.len() as u64
     }
 
-    fn create_pair(
+    default fn create_pair(
         &mut self,
         token_a: AccountId,
         token_b: AccountId,
@@ -74,6 +74,10 @@ impl<T: Storage<data::Data>> Factory for T {
 
     default fn fee_to_setter(&self) -> AccountId {
         self.data::<data::Data>().fee_to_setter
+    }
+
+    default fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId> {
+        self.data::<data::Data>().get_pair(token_a, token_b)
     }
 }
 

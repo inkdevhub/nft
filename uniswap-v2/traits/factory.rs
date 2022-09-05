@@ -26,6 +26,9 @@ pub trait Factory {
 
     #[ink(message)]
     fn fee_to_setter(&self) -> AccountId;
+
+    #[ink(message)]
+    fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId>;
 }
 
 #[openbrush::trait_definition]
