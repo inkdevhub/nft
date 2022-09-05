@@ -337,8 +337,8 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
             let price_cumulative_last_1 = (reserve_0 / reserve_1)
                 .checked_mul(time_elapsed as u128)
                 .ok_or(PairError::MulOverFlow4)?;
-            self.data::<data::Data>().price_0_cumulative_last = price_cumulative_last_0;
-            self.data::<data::Data>().price_1_cumulative_last = price_cumulative_last_1;
+            self.data::<data::Data>().price_0_cumulative_last += price_cumulative_last_0;
+            self.data::<data::Data>().price_1_cumulative_last += price_cumulative_last_1;
         }
         self.data::<data::Data>().reserve_0 = balance_0;
         self.data::<data::Data>().reserve_1 = balance_1;

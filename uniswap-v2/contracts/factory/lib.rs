@@ -3,7 +3,13 @@
 
 #[openbrush::contract]
 pub mod factory {
-    use ink_lang::ToAccountId;
+    use ink_lang::{
+        codegen::{
+            EmitEvent,
+            Env,
+        },
+        ToAccountId,
+    };
     use ink_storage::traits::SpreadAllocate;
     use openbrush::traits::{
         Storage,
@@ -48,18 +54,20 @@ pub mod factory {
     impl Internal for FactoryContract {
         fn _emit_create_pair_event(
             &self,
-            _token_0: AccountId,
-            _token_1: AccountId,
-            _pair: AccountId,
-            _pair_len: u64,
+            token_0: AccountId,
+            token_1: AccountId,
+            pair: AccountId,
+            pair_len: u64,
         ) {
-            // TODO fix compilation
-            // self.env().emit_event(PairCreated {
-            //     token_0,
-            //     token_1,
-            //     pair,
-            //     pair_len,
-            // })
+            EmitEvent::<FactoryContract>::emit_event(
+                self.env(),
+                PairCreated {
+                    token_0,
+                    token_1,
+                    pair,
+                    pair_len,
+                },
+            )
         }
     }
 

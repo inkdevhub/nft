@@ -4,16 +4,11 @@ pub use crate::{
     traits::factory::*,
 };
 use ink_env::hash::Blake2x256;
-use ink_prelude::{
-    vec,
-    vec::Vec,
-};
 use openbrush::{
     modifier_definition,
     modifiers,
     traits::{
         AccountId,
-        Hash,
         Storage,
         ZERO_ADDRESS,
     },
@@ -41,14 +36,7 @@ impl<T: Storage<data::Data>> Factory for T {
             return Err(FactoryError::ZeroAddress)
         }
 
-        let mut hash_data: Vec<u8> = vec![];
-        let token_0_slice: &[u8] = token_pair.0.as_ref();
-        let token_1_slice: &[u8] = token_pair.1.as_ref();
-        hash_data.append(&mut token_0_slice.to_vec());
-        hash_data.append(&mut token_1_slice.to_vec());
-        let salt =
-            Hash::try_from(Self::env().hash_bytes::<Blake2x256>(&hash_data).as_ref()).unwrap();
-
+        let salt = Self::env().hash_encoded::<Blake2x256, _>(&token_pair);
         let mut pair_contract = self._instantiate_pair(salt.as_ref());
 
         PairRef::initialize(&mut pair_contract, token_pair.0, token_pair.1)?;
