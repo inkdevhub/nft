@@ -94,6 +94,7 @@ pub enum PairError {
     SafeTransferFailed,
     InvalidTo,
     Overflow,
+    Locked,
     SubUnderFlow1,
     SubUnderFlow2,
     SubUnderFlow3,

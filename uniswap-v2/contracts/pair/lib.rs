@@ -12,7 +12,6 @@ pub mod pair {
     use openbrush::{
         contracts::{
             ownable::*,
-            pausable::*,
             psp22::{
                 Internal,
                 *,
@@ -60,8 +59,6 @@ pub mod pair {
     pub struct PairContract {
         #[storage_field]
         psp22: psp22::Data,
-        #[storage_field]
-        pause: pausable::Data,
         #[storage_field]
         ownable: ownable::Data,
         #[storage_field]
@@ -150,8 +147,6 @@ pub mod pair {
             Ok(())
         }
     }
-
-    impl Pausable for PairContract {}
 
     impl Ownable for PairContract {}
 

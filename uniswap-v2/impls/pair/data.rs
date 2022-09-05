@@ -18,4 +18,5 @@ pub struct Data {
     pub price_0_cumulative_last: Balance,
     pub price_1_cumulative_last: Balance,
     pub k_last: u128,
+    pub lock: bool,
 }
