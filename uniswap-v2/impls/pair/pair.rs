@@ -156,7 +156,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
     }
 
     #[modifiers(lock)]
-    fn swap(
+    default fn swap(
         &mut self,
         amount_0_out: Balance,
         amount_1_out: Balance,
@@ -260,7 +260,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
     }
 
     #[modifiers(lock)]
-    fn skim(&mut self, to: AccountId) -> Result<(), PairError> {
+    default fn skim(&mut self, to: AccountId) -> Result<(), PairError> {
         let contract = Self::env().account_id();
         let reserve_0 = self.data::<data::Data>().reserve_0;
         let reserve_1 = self.data::<data::Data>().reserve_1;
@@ -286,7 +286,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
     }
 
     #[modifiers(lock)]
-    fn sync(&mut self) -> Result<(), PairError> {
+    default fn sync(&mut self) -> Result<(), PairError> {
         let contract = Self::env().account_id();
         let reserve_0 = self.data::<data::Data>().reserve_0;
         let reserve_1 = self.data::<data::Data>().reserve_1;
@@ -295,6 +295,14 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         let balance_0 = PSP22Ref::balance_of(&token_0, contract);
         let balance_1 = PSP22Ref::balance_of(&token_1, contract);
         self._update(balance_0, balance_1, reserve_0, reserve_1)
+    }
+
+    default fn get_token_0(&self) -> AccountId {
+        self.data::<data::Data>().token_0
+    }
+
+    default fn get_token_1(&self) -> AccountId {
+        self.data::<data::Data>().token_1
     }
 
     default fn _safe_transfer(

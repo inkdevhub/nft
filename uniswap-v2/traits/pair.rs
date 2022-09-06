@@ -43,6 +43,12 @@ pub trait Pair {
     #[ink(message)]
     fn sync(&mut self) -> Result<(), PairError>;
 
+    #[ink(message)]
+    fn get_token_0(&self) -> AccountId;
+
+    #[ink(message)]
+    fn get_token_1(&self) -> AccountId;
+
     fn _safe_transfer(
         &mut self,
         token: AccountId,
