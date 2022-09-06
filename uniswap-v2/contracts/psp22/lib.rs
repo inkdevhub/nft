@@ -46,22 +46,22 @@ pub mod token {
     impl psp22::Internal for MyPSP22 {
         fn _emit_transfer_event(
             &self,
-            from: Option<AccountId>,
-            to: Option<AccountId>,
-            amount: Balance,
+            _from: Option<AccountId>,
+            _to: Option<AccountId>,
+            _amount: Balance,
         ) {
             self.env().emit_event(Transfer {
-                from,
-                to,
-                value: amount,
+                from: _from,
+                to: _to,
+                value: _amount,
             });
         }
 
-        fn _emit_approval_event(&self, owner: AccountId, spender: AccountId, amount: Balance) {
+        fn _emit_approval_event(&self, _owner: AccountId, _spender: AccountId, _amount: Balance) {
             self.env().emit_event(Approval {
-                owner,
-                spender,
-                value: amount,
+                owner: _owner,
+                spender: _spender,
+                value: _amount,
             });
         }
     }
