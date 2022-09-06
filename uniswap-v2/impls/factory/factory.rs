@@ -14,7 +14,11 @@ use openbrush::{
     },
 };
 
-impl<T: Storage<data::Data>> Factory for T {
+impl<T> Factory for T
+where
+    T: Internal,
+    T: Storage<data::Data>,
+{
     default fn all_pair_length(&self) -> u64 {
         self.data::<data::Data>().all_pairs.len() as u64
     }
@@ -49,6 +53,13 @@ impl<T: Storage<data::Data>> Factory for T {
             .insert(&(token_pair.1, token_pair.0), &pair_contract);
         self.data::<data::Data>().all_pairs.push(pair_contract);
 
+        self._emit_create_pair_event(
+            token_pair.0,
+            token_pair.1,
+            pair_contract,
+            self.all_pair_length(),
+        );
+
         Ok(pair_contract)
     }
 
@@ -78,7 +89,18 @@ impl<T: Storage<data::Data>> Factory for T {
     }
 
     default fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId> {
-        self.data::<data::Data>().get_pair(token_a, token_b)
+        self.data::<data::Data>().get_pair.get(&(token_a, token_b))
+    }
+}
+
+impl<T: Storage<data::Data>> Internal for T {
+    default fn _emit_create_pair_event(
+        &self,
+        _token_0: AccountId,
+        _token_1: AccountId,
+        _pair: AccountId,
+        _pair_len: u64,
+    ) {
     }
 }
 

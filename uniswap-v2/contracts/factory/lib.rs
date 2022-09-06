@@ -44,7 +44,7 @@ pub mod factory {
             let pair = PairContractRef::new()
                 .endowment(0)
                 .code_hash(pair_hash)
-                .salt_bytes(salt_bytes)
+                .salt_bytes(&salt_bytes[..4])
                 .instantiate()
                 .unwrap();
             pair.to_account_id()
