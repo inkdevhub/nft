@@ -16,6 +16,7 @@ pub mod pair {
                 Internal,
                 *,
             },
+            reentrancy_guard,
         },
         traits::Storage,
     };
@@ -76,6 +77,8 @@ pub mod pair {
         psp22: psp22::Data,
         #[storage_field]
         ownable: ownable::Data,
+        #[storage_field]
+        guard: reentrancy_guard::Data,
         #[storage_field]
         pair: data::Data,
     }

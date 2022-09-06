@@ -5,14 +5,13 @@ pub use crate::{
 };
 use ink_env::CallFlags;
 use ink_prelude::vec::Vec;
-use ink_storage::traits::push_spread_root;
 use openbrush::{
     contracts::{
         ownable::*,
         psp22::*,
+        reentrancy_guard::*,
         traits::psp22::PSP22Ref,
     },
-    modifier_definition,
     modifiers,
     traits::{
         AccountId,
@@ -26,7 +25,13 @@ use primitive_types::U256;
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
 
-impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pair for T {
+impl<
+        T: Storage<data::Data>
+            + Storage<ownable::Data>
+            + Storage<psp22::Data>
+            + Storage<reentrancy_guard::Data>,
+    > Pair for T
+{
     default fn get_reserves(&self) -> (Balance, Balance, Timestamp) {
         (
             self.data::<data::Data>().reserve_0,
@@ -46,7 +51,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok(())
     }
 
-    #[modifiers(lock)]
+    #[modifiers(non_reentrant)]
     default fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
         let reserves = self.get_reserves();
         let contract = Self::env().account_id();
@@ -106,7 +111,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok(liquidity)
     }
 
-    #[modifiers(lock)]
+    #[modifiers(non_reentrant)]
     default fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError> {
         let reserves = self.get_reserves();
         let contract = Self::env().account_id();
@@ -156,7 +161,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok((amount_0, amount_1))
     }
 
-    #[modifiers(lock)]
+    #[modifiers(non_reentrant)]
     default fn swap(
         &mut self,
         amount_0_out: Balance,
@@ -256,7 +261,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok(())
     }
 
-    #[modifiers(lock)]
+    #[modifiers(non_reentrant)]
     default fn skim(&mut self, to: AccountId) -> Result<(), PairError> {
         let contract = Self::env().account_id();
         let reserve_0 = self.data::<data::Data>().reserve_0;
@@ -282,7 +287,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok(())
     }
 
-    #[modifiers(lock)]
+    #[modifiers(non_reentrant)]
     default fn sync(&mut self) -> Result<(), PairError> {
         let contract = Self::env().account_id();
         let reserve_0 = self.data::<data::Data>().reserve_0;
@@ -430,23 +435,4 @@ fn sqrt(y: u128) -> u128 {
         }
     }
     z
-}
-
-#[modifier_definition]
-pub fn lock<T, F, R, E>(instance: &mut T, body: F) -> Result<R, E>
-where
-    T: Storage<data::Data>,
-    F: FnOnce(&mut T) -> Result<R, E>,
-    E: From<PairError>,
-{
-    if instance.data().lock {
-        return Err(From::from(PairError::Locked))
-    }
-    instance.data().lock = true;
-
-    push_spread_root(instance.data(), &Default::default());
-
-    let result = body(instance);
-    instance.data().lock = false;
-    result
 }
