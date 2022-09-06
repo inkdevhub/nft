@@ -1,3 +1,4 @@
+use crate::traits::factory::FactoryRef;
 pub use crate::{
     impls::pair::*,
     traits::pair::*,
@@ -314,8 +315,45 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         _reserve_0: Balance,
         _reserve_1: Balance,
     ) -> Result<bool, PairError> {
-        // TODO update when factory contract is done
-        Ok(true)
+        let fee_to = FactoryRef::fee_to(&self.data::<data::Data>().factory);
+        let fee_on = fee_to != ZERO_ADDRESS.into();
+        let k_last = self.data::<data::Data>().k_last;
+        if fee_on {
+            if k_last != 0 {
+                let reserve_0 = self.data::<data::Data>().reserve_0;
+                let reserve_1 = self.data::<data::Data>().reserve_1;
+                let root_k = sqrt(
+                    reserve_0
+                        .checked_mul(reserve_1)
+                        .ok_or(PairError::MulOverFlow14)?,
+                );
+                let root_k_last = sqrt(k_last);
+                if root_k > root_k_last {
+                    let total_supply = self.data::<psp22::Data>().supply;
+                    let numerator = total_supply
+                        .checked_mul(
+                            root_k
+                                .checked_sub(root_k_last)
+                                .ok_or(PairError::SubUnderFlow14)?,
+                        )
+                        .ok_or(PairError::MulOverFlow15)?;
+                    let denominator = root_k
+                        .checked_mul(5)
+                        .ok_or(PairError::MulOverFlow15)?
+                        .checked_add(root_k_last)
+                        .ok_or(PairError::AddOverflow1)?;
+                    let liquidity = numerator
+                        .checked_div(denominator)
+                        .ok_or(PairError::DivByZero5)?;
+                    if liquidity > 0 {
+                        self._mint(fee_to, liquidity)?;
+                    }
+                }
+            }
+        } else if k_last != 0 {
+            self.data::<data::Data>().k_last = 0;
+        }
+        Ok(fee_on)
     }
 
     default fn _update(
