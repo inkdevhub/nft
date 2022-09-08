@@ -54,6 +54,21 @@ pub mod pair {
         pub to: AccountId,
     }
 
+    #[ink(event)]
+    pub struct Sync {
+        reserve_0: Balance,
+        reserve_1: Balance,
+    }
+
+    #[ink(event)]
+    pub struct Transfer {
+        #[ink(topic)]
+        from: Option<AccountId>,
+        #[ink(topic)]
+        to: Option<AccountId>,
+        value: Balance,
+    }
+
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
     pub struct PairContract {
@@ -146,6 +161,19 @@ pub mod pair {
             self._emit_transfer_event(Some(from), Some(to), amount);
             Ok(())
         }
+
+        fn _emit_transfer_event(
+            &self,
+            from: Option<AccountId>,
+            to: Option<AccountId>,
+            amount: Balance,
+        ) {
+            self.env().emit_event(Transfer {
+                from,
+                to,
+                value: amount,
+            });
+        }
     }
 
     impl Ownable for PairContract {}
@@ -190,6 +218,13 @@ pub mod pair {
                 amount_0_out,
                 amount_1_out,
                 to,
+            })
+        }
+
+        fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance) {
+            self.env().emit_event(Sync {
+                reserve_0,
+                reserve_1,
             })
         }
     }

@@ -390,6 +390,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         self.data::<data::Data>().reserve_1 = balance_1;
         self.data::<data::Data>().block_timestamp_last = now;
 
+        self._emit_sync_event(reserve_0, reserve_1);
         Ok(())
     }
 
@@ -413,6 +414,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         _to: AccountId,
     ) {
     }
+    default fn _emit_sync_event(&self, _reserve_0: Balance, _reserve_1: Balance) {}
 }
 
 fn min(x: u128, y: u128) -> u128 {

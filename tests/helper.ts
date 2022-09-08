@@ -7,7 +7,7 @@ const {api} = network
 const {getContractFactory, getRandomSigner} = patract
 const {getSigners} = network
 
-export const ONE = new BN(10).pow(new BN(api.registry.chainDecimals[0]))
+const ONE = new BN(10).pow(new BN(api.registry.chainDecimals[0]))
 
 export const setupContract = async (name, constructor, ...args) => {
     await api.isReady
