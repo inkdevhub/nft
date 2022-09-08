@@ -83,6 +83,7 @@ pub trait Pair {
         _amount_1_out: Balance,
         _to: AccountId,
     );
+    fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance);
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -127,6 +128,7 @@ pub enum PairError {
     MulOverFlow11,
     MulOverFlow12,
     MulOverFlow13,
+    MulOverFlow14,
     DivByZero1,
     DivByZero2,
     DivByZero3,

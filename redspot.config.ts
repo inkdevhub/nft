@@ -58,11 +58,34 @@ export default {
                         MulOverFlow11: null,
                         MulOverFlow12: null,
                         MulOverFlow13: null,
+                        MulOverFlow14: null,
                         DivByZero1: null,
                         DivByZero2: null,
                         DivByZero3: null,
                         DivByZero4: null,
                     },
+                },
+                PSP22Error: {
+                    _enum: {
+                        Custom: 'String',
+                        InsufficientBalance: null,
+                        InsufficientAllowance: null,
+                        ZeroRecipientAddress: null,
+                        ZeroSenderAddress: null,
+                        SafeTransferCheckFailed: 'String',
+                    }
+                },
+                OwnableError: {
+                    _enum: {
+                        CallerIsNotOwner: null,
+                        NewOwnerIsZero: null,
+                    }
+                },
+                PausableError: {
+                    _enum: {
+                        Paused: null,
+                        NotPaused: null,
+                    }
                 },
             },
         },
