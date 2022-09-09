@@ -16,6 +16,7 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 openbrush = { version = "2.2.0", default-features = false, features = ["psp22", "ownable"] }
+primitive-types = { version = "0.11.1", default-features = false, features = ["num-traits"] }
 
 [lib]
 name = "uniswap_v2"
@@ -37,4 +38,5 @@ std = [
     "scale-info",
     "scale-info/std",
     "openbrush/std",
+    "primitive-types/std"
 ]

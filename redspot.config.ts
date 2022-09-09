@@ -87,6 +87,16 @@ export default {
                         NotPaused: null,
                     }
                 },
+                OpenbrushContractsErrorsPsp22Psp22Error: {
+                    _enum: {
+                        Custom: 'String',
+                        InsufficientBalance: null,
+                        InsufficientAllowance: null,
+                        ZeroRecipientAddress: null,
+                        ZeroSenderAddress: null,
+                        SafeTransferCheckFailed: 'String',
+                    }
+                }
             },
         },
         substrate: {

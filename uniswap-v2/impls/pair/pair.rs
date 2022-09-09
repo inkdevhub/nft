@@ -22,6 +22,7 @@ use openbrush::{
         ZERO_ADDRESS,
     },
 };
+use primitive_types::U256;
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
 
@@ -235,13 +236,9 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
             .checked_sub(amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow11)?)
             .ok_or(PairError::SubUnderFlow11)?;
 
-        if balance_0_adjusted
-            .checked_mul(balance_1_adjusted)
-            .ok_or(PairError::MulOverFlow12)?
-            < reserves
-                .0
-                .checked_mul(reserves.1)
-                .ok_or(PairError::MulOverFlow13)?
+        // Cast to U256 to prevent Overflow
+        if U256::from(balance_0_adjusted) * U256::from(balance_1_adjusted)
+            < U256::from(reserves.0) * U256::from(reserves.1) * U256::from(1000u128.pow(2))
         {
             return Err(PairError::K)
         }
