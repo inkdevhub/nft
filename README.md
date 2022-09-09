@@ -14,7 +14,7 @@ This folder contains the line by line implementation of [uniswap-v2 core](https:
 On Chain governance Based on [Governor](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/governance) contracts of OpenZeppelin
 
 ### Tests
-These folders contain an example of how to use chain-extion structs in your contracts. The tests folders is an end-to-end tests for the chain extension.
+The tests folders contains end-to-end tests for the contracts.
 
 **Runs the tests**
 1. Run a local node \
