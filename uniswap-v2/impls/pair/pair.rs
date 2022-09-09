@@ -66,10 +66,10 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         if total_supply == 0 {
             let liq = amount_0
                 .checked_mul(amount_1)
-                .ok_or(PairError::MulOverFlow1)?
+                .ok_or(PairError::MulOverFlow1)?;
+            liquidity = sqrt(liq)
                 .checked_sub(MINIMUM_LIQUIDITY)
                 .ok_or(PairError::SubUnderFlow3)?;
-            liquidity = sqrt(liq);
             self._mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
         } else {
             let liquidity_1 = amount_0
@@ -317,16 +317,14 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
 
     default fn _mint_fee(
         &mut self,
-        _reserve_0: Balance,
-        _reserve_1: Balance,
+        reserve_0: Balance,
+        reserve_1: Balance,
     ) -> Result<bool, PairError> {
         let fee_to = FactoryRef::fee_to(&self.data::<data::Data>().factory);
         let fee_on = fee_to != ZERO_ADDRESS.into();
         let k_last = self.data::<data::Data>().k_last;
         if fee_on {
             if k_last != 0 {
-                let reserve_0 = self.data::<data::Data>().reserve_0;
-                let reserve_1 = self.data::<data::Data>().reserve_1;
                 let root_k = sqrt(
                     reserve_0
                         .checked_mul(reserve_1)

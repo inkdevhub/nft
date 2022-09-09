@@ -12,7 +12,8 @@ describe('PAIR', () => {
             const tokenB = await setupContract('psp22_token', 'new', new BN(ONE.muln(10000)))
             const pair = await setupContract('pair_contract', 'new')
             const pair_code_hash = (await pair.abi).source.hash
-            const factory_contract = await setupContract('factory_contract', 'new', pair.deployer.address, pair_code_hash)
+            // fee receiver should not be the same as deployer
+            const factory_contract = await setupContract('factory_contract', 'new', pair.bob.address, pair_code_hash)
             await factory_contract.contract.tx["factory::createPair"](tokenA.contract.address, tokenB.contract.address)
             const pair_address = await factory_contract.query["factory::getPair"](tokenA.contract.address, tokenB.contract.address)
             const pair_contract = await attachContract('pair_contract', pair_address.output.unwrap())
@@ -32,7 +33,7 @@ describe('PAIR', () => {
         }
 
         it('mint', async () => {
-            const { token0, token1, pair, wallet } = await setup()
+            const { token0, token1, pair, wallet, MINIMUM_LIQUIDITY } = await setup()
 
             const token0Amount = ONE
             const token1Amount = ONE.muln(4)
@@ -42,10 +43,9 @@ describe('PAIR', () => {
             await expect(token1.tx['psp22::transfer'](pair.address, token1Amount, [])).to.eventually.be.fulfilled
 
             await expect(pair.tx['pair::mint'](wallet.address)).to.eventually.be.fulfilled
-            // Should be expectedLiquidity
-            await expect(pair.query['psp22::totalSupply']()).to.eventually.have.property('output').to.equal(new BN('2000000000000000999'))
-            // Should be expectedLiquidity - MINIMUM_LIQUIDITY
-            await expect(pair.query["psp22::balanceOf"](wallet.address)).to.eventually.have.property('output').to.equal(new BN('1999999999999999999'))
+
+            await expect(pair.query['psp22::totalSupply']()).to.eventually.have.property('output').to.equal(expectedLiquidity)
+            await expect(pair.query["psp22::balanceOf"](wallet.address)).to.eventually.have.property('output').to.equal(expectedLiquidity.subn(MINIMUM_LIQUIDITY))
 
             await expect(token0.query["psp22::balanceOf"](pair.address)).to.eventually.have.property('output').to.equal(token0Amount)
             await expect(token1.query["psp22::balanceOf"](pair.address)).to.eventually.have.property('output').to.equal(token1Amount)
@@ -99,14 +99,14 @@ describe('PAIR', () => {
         await expect(pair.query["psp22::totalSupply"]()).to.eventually.have.property('output').to.equal(MINIMUM_LIQUIDITY)
 
         await expect(token0.query["psp22::balanceOf"](pair.address)).to.eventually.have.property('output').to.equal(1000)
-        await expect(token1.query["psp22::balanceOf"](pair.address)).to.eventually.have.property('output').to.equal(100)
+        await expect(token1.query["psp22::balanceOf"](pair.address)).to.eventually.have.property('output').to.equal(1000)
 
         const totalSupplyToken0 = await token0.query["psp22::totalSupply"]()
         const totalSupplyToken1 = await token1.query["psp22::totalSupply"]()
 
         // DON'T Pass =(
-        await expect(token0.query["psp22::balanceOf"](wallet.address)).to.eventually.have.property('output').to.equal(totalSupplyToken0.output.sub(1000))
-        await expect(token1.query["psp22::balanceOf"](wallet.address)).to.eventually.have.property('output').to.equal(totalSupplyToken1.output.sub(1000))
+        await expect(token0.query["psp22::balanceOf"](wallet.address)).to.eventually.have.property('output').to.equal(totalSupplyToken0.output.subn(1000))
+        await expect(token1.query["psp22::balanceOf"](wallet.address)).to.eventually.have.property('output').to.equal(totalSupplyToken1.output.subn(1000))
     })
 })
 

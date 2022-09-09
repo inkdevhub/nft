@@ -235,6 +235,7 @@ pub mod pair {
             ink_lang::codegen::initialize_contract(|instance: &mut Self| {
                 let caller = instance.env().caller();
                 instance._init_with_owner(caller);
+                instance.pair.factory = caller;
             })
         }
     }
