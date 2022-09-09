@@ -18,7 +18,7 @@ The tests folders contains end-to-end tests for the contracts.
 
 **Runs the tests**
 1. Run a local node \
-   Use [swanky-node](https://github.com/AstarNetwork/swanky-node) or [Astar-local](https://github.com/AstarNetwork/Astar) that have the specified chain-extension enabled. Please follow the build & run instructions in their respective repository.
+   Use [swanky-node](https://github.com/AstarNetwork/swanky-node) or [Astar-local](https://github.com/AstarNetwork/Astar). Please follow the build & run instructions in their respective repository.
 2. The end-to-end test uses redspot as testing environment. Node version should be 14
 ```bash
 yarn install
