@@ -129,7 +129,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
             .checked_div(total_supply)
             .ok_or(PairError::DivByZero4)?;
 
-        if amount_0 == 0 || amount_0 == 0 {
+        if amount_0 == 0 || amount_1 == 0 {
             return Err(PairError::InsufficientLiquidityBurned)
         }
 
@@ -448,6 +448,5 @@ where
 
     let result = body(instance);
     instance.data().lock = false;
-
-    return result
+    result
 }

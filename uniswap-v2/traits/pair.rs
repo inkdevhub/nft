@@ -19,7 +19,6 @@ pub trait Pair {
     #[ink(message)]
     fn get_reserves(&self) -> (Balance, Balance, Timestamp);
 
-    /// Only factory (owner) can access this function
     #[ink(message)]
     fn initialize(&mut self, token_0: AccountId, token_1: AccountId) -> Result<(), PairError>;
 
