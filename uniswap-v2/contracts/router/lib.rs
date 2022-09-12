@@ -2,19 +2,27 @@
 
 #[openbrush::contract]
 mod router {
-    use ink_storage::traits::SpreadAllocate;
-    use ink_prelude::vec::Vec;
     use ink_env::CallFlags;
-    use openbrush::traits::{
-        ZERO_ADDRESS
-    };
-    use openbrush::contracts::{
-        psp22::PSP22Error,
-        traits::psp22::PSP22Ref,
+    use ink_prelude::vec::Vec;
+    use ink_storage::traits::SpreadAllocate;
+    use openbrush::{
+        contracts::{
+            psp22::PSP22Error,
+            traits::psp22::PSP22Ref,
+        },
+        traits::ZERO_ADDRESS,
     };
 
-    use uniswap_v2::traits::pair::{PairRef, PairError};
-    use uniswap_v2::traits::factory::{FactoryRef, FactoryError};
+    use uniswap_v2::traits::{
+        factory::{
+            FactoryError,
+            FactoryRef,
+        },
+        pair::{
+            PairError,
+            PairRef,
+        },
+    };
 
     // Error Definition
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -30,6 +38,7 @@ mod router {
         InsufficientLiquidity,
         ZeroAddress,
         IdenticalAddresses,
+        Expired,
         SubUnderFlow,
         MulOverFlow,
         DivByZero,
@@ -53,8 +62,6 @@ mod router {
         }
     }
 
-    // Returned Value Definition
-    
     #[ink(storage)]
     #[derive(Default, SpreadAllocate)]
     pub struct Router {
@@ -79,7 +86,7 @@ mod router {
             &self,
             amount_a: Balance,
             reserve_a: Balance,
-            reserve_b: Balance
+            reserve_b: Balance,
         ) -> Result<Balance, RouterError> {
             self._quote(amount_a, reserve_a, reserve_b)
         }
@@ -89,7 +96,7 @@ mod router {
             &self,
             amount_in: Balance,
             reserve_in: Balance,
-            reserve_out: Balance
+            reserve_out: Balance,
         ) -> Result<Balance, RouterError> {
             self._get_amount_out(amount_in, reserve_in, reserve_out)
         }
@@ -99,7 +106,7 @@ mod router {
             &self,
             amount_out: Balance,
             reserve_in: Balance,
-            reserve_out: Balance
+            reserve_out: Balance,
         ) -> Result<Balance, RouterError> {
             self._get_amount_in(amount_out, reserve_in, reserve_out)
         }
@@ -110,7 +117,7 @@ mod router {
             &self,
             _factory: AccountId,
             _amount_in: Balance,
-            _path: Vec<AccountId>
+            _path: Vec<AccountId>,
         ) -> Result<Vec<Balance>, RouterError> {
             Ok(Vec::<Balance>::new())
         }
@@ -121,7 +128,7 @@ mod router {
             &self,
             _factory: AccountId,
             _amount_out: Balance,
-            _path: Vec<AccountId>
+            _path: Vec<AccountId>,
         ) -> Result<Vec<Balance>, RouterError> {
             Ok(Vec::<Balance>::new())
         }
@@ -134,28 +141,77 @@ mod router {
             amount_a_desired: Balance,
             amount_b_desired: Balance,
             amount_a_min: Balance,
-            amount_b_min: Balance
+            amount_b_min: Balance,
         ) -> Result<(Balance, Balance, Balance), RouterError> {
-            let (amount_a, amount_b) = self._add_liquidity(token_a, token_b, amount_a_desired, amount_b_desired, amount_a_min, amount_b_min)?;
+            let (amount_a, amount_b) = self._add_liquidity(
+                token_a,
+                token_b,
+                amount_a_desired,
+                amount_b_desired,
+                amount_a_min,
+                amount_b_min,
+            )?;
             let pair_contract = self._pair_for(self.factory, token_a, token_b)?;
             self._safe_transfer(token_a, pair_contract, amount_a)?;
             self._safe_transfer(token_b, pair_contract, amount_b)?;
             let liquidity = PairRef::mint(&pair_contract, self.env().caller())?;
-            
+
             Ok((amount_a, amount_b, liquidity))
+        }
+
+        #[ink(message)]
+        pub fn remove_requidity(
+            &mut self,
+            token_a: AccountId,
+            token_b: AccountId,
+            liquidity: Balance,
+            amount_a_min: Balance,
+            amount_b_min: Balance,
+            to: AccountId,
+            dead_line: u64,
+        ) -> Result<(Balance, Balance), RouterError> {
+            if dead_line <= self.env().block_timestamp() {
+                return Err(RouterError::Expired)
+            }
+
+            let pair_contract = self._pair_for(self.factory, token_a, token_b)?;
+            PSP22Ref::transfer_from(
+                &pair_contract,
+                self.env().caller(),
+                pair_contract,
+                liquidity,
+                Vec::new(),
+            )?;
+
+            let (amount_0, amount_1) = PairRef::burn(&pair_contract, to)?;
+            let (token_0, _) = self._sort_tokens(token_a, token_b)?;
+            let (amount_a, amount_b) = if token_a == token_0 {
+                (amount_0, amount_1)
+            } else {
+                (amount_1, amount_0)
+            };
+
+            if amount_a < amount_a_min {
+                return Err(RouterError::InsufficientAAmount)
+            }
+            if amount_b < amount_b_min {
+                return Err(RouterError::InsufficientBAmount)
+            }
+
+            Ok((amount_a, amount_b))
         }
 
         fn _quote(
             &self,
             amount_a: Balance,
             reserve_a: Balance,
-            reserve_b: Balance
+            reserve_b: Balance,
         ) -> Result<Balance, RouterError> {
             if amount_a <= 0 {
-                return Err(RouterError::InsufficientAmount);
+                return Err(RouterError::InsufficientAmount)
             }
             if reserve_a <= 0 || reserve_b <= 0 {
-                return Err(RouterError::InsufficientLiquidity);
+                return Err(RouterError::InsufficientLiquidity)
             }
 
             let amount_b = amount_a
@@ -167,17 +223,20 @@ mod router {
             Ok(amount_b)
         }
 
-        fn _get_amount_out(&self, amount_in: Balance, reserve_in: Balance, reserve_out: Balance) -> Result<Balance, RouterError> {
+        fn _get_amount_out(
+            &self,
+            amount_in: Balance,
+            reserve_in: Balance,
+            reserve_out: Balance,
+        ) -> Result<Balance, RouterError> {
             if amount_in <= 0 {
-                return Err(RouterError::InsufficientAmount);
+                return Err(RouterError::InsufficientAmount)
             }
             if reserve_in <= 0 || reserve_out <= 0 {
-                return Err(RouterError::InsufficientLiquidity);
+                return Err(RouterError::InsufficientLiquidity)
             }
 
-            let amount_in_with_fee = amount_in
-                .checked_mul(997)
-                .ok_or(RouterError::MulOverFlow)?;
+            let amount_in_with_fee = amount_in.checked_mul(997).ok_or(RouterError::MulOverFlow)?;
 
             let numerator = amount_in_with_fee
                 .checked_mul(reserve_out)
@@ -185,7 +244,8 @@ mod router {
 
             let denominator = reserve_in
                 .checked_mul(1000)
-                .ok_or(RouterError::MulOverFlow)? + amount_in_with_fee;
+                .ok_or(RouterError::MulOverFlow)?
+                + amount_in_with_fee;
 
             let amount_out = numerator
                 .checked_div(denominator)
@@ -194,12 +254,17 @@ mod router {
             Ok(amount_out)
         }
 
-        fn _get_amount_in(&self, amount_out: Balance, reserve_in: Balance, reserve_out: Balance) -> Result<Balance, RouterError> {
+        fn _get_amount_in(
+            &self,
+            amount_out: Balance,
+            reserve_in: Balance,
+            reserve_out: Balance,
+        ) -> Result<Balance, RouterError> {
             if amount_out <= 0 {
-                return Err(RouterError::InsufficientAmount);
+                return Err(RouterError::InsufficientAmount)
             }
             if reserve_in <= 0 || reserve_out <= 0 {
-                return Err(RouterError::InsufficientLiquidity);
+                return Err(RouterError::InsufficientLiquidity)
             }
 
             let numerator = reserve_in
@@ -216,12 +281,18 @@ mod router {
 
             let amount_in = numerator
                 .checked_div(denominator)
-                .ok_or(RouterError::MulOverFlow)? + 1;
+                .ok_or(RouterError::MulOverFlow)?
+                + 1;
 
             Ok(amount_in)
         }
 
-        fn _get_reserves(&self, factory: AccountId, token_a: AccountId, token_b: AccountId) -> Result<(Balance, Balance), RouterError> {
+        fn _get_reserves(
+            &self,
+            factory: AccountId,
+            token_a: AccountId,
+            token_b: AccountId,
+        ) -> Result<(Balance, Balance), RouterError> {
             let (token_0, _) = self._sort_tokens(token_a, token_b)?;
             let (reserve_0, reserve_1, _) = PairRef::get_reserves(&factory);
 
@@ -232,19 +303,23 @@ mod router {
             }
         }
 
-        fn _sort_tokens(&self, token_a: AccountId, token_b: AccountId) -> Result<(AccountId, AccountId), RouterError> {
+        fn _sort_tokens(
+            &self,
+            token_a: AccountId,
+            token_b: AccountId,
+        ) -> Result<(AccountId, AccountId), RouterError> {
             if token_a == token_b {
-                return Err(RouterError::IdenticalAddresses);
+                return Err(RouterError::IdenticalAddresses)
             }
 
             let (token_0, token_1) = if token_a < token_b {
-                    (token_a, token_b) 
-                } else {
-                    (token_b, token_a)
-                };
+                (token_a, token_b)
+            } else {
+                (token_b, token_a)
+            };
 
             if token_0 == ZERO_ADDRESS.into() {
-                return Err(RouterError::ZeroAddress);
+                return Err(RouterError::ZeroAddress)
             }
 
             Ok((token_0, token_1))
@@ -262,7 +337,7 @@ mod router {
             if FactoryRef::get_pair(&self.factory, token_a, token_b).is_none() {
                 FactoryRef::create_pair(&self.factory, token_a, token_b)?;
             };
-            
+
             let (reserve_a, reserve_b) = self._get_reserves(self.factory, token_a, token_b)?;
 
             if reserve_a == 0 && reserve_b == 0 {
@@ -272,7 +347,7 @@ mod router {
             let amount_b_optimal = self._quote(amount_a_desired, reserve_a, reserve_b)?;
             if amount_b_optimal <= amount_b_desired {
                 if amount_b_optimal < amount_b_min {
-                    return Err(RouterError::InsufficientBAmount);
+                    return Err(RouterError::InsufficientBAmount)
                 }
 
                 Ok((amount_a_desired, amount_b_optimal))
@@ -280,19 +355,24 @@ mod router {
                 let amount_a_optimal = self._quote(amount_b_desired, reserve_b, reserve_a)?;
                 assert!(amount_a_optimal <= amount_a_desired);
                 if amount_a_optimal < amount_a_min {
-                    return Err(RouterError::InsufficientAAmount);
+                    return Err(RouterError::InsufficientAAmount)
                 }
 
                 Ok((amount_a_optimal, amount_b_desired))
             }
         }
 
-        fn _pair_for(&self, factory: AccountId, token_a: AccountId, token_b: AccountId) -> Result<AccountId, RouterError> {
+        fn _pair_for(
+            &self,
+            factory: AccountId,
+            token_a: AccountId,
+            token_b: AccountId,
+        ) -> Result<AccountId, RouterError> {
             let (token_0, token_1) = self._sort_tokens(token_a, token_b)?;
 
             // Original Uniswap Library pairFor function calculate pair contract address without making external calls.
             // Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
-            
+
             // In this contract, use external call to get pair contract address.
             let pair = FactoryRef::get_pair(&factory, token_0, token_1)
                 .ok_or(RouterError::PairNotFound)?;
