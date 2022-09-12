@@ -1,8 +1,11 @@
 use openbrush::{
-    contracts::traits::{
-        ownable::*,
-        pausable::*,
-        psp22::PSP22Error,
+    contracts::{
+        reentrancy_guard::*,
+        traits::{
+            ownable::*,
+            pausable::*,
+            psp22::PSP22Error,
+        },
     },
     traits::{
         AccountId,
@@ -19,7 +22,6 @@ pub trait Pair {
     #[ink(message)]
     fn get_reserves(&self) -> (Balance, Balance, Timestamp);
 
-    /// Only factory (owner) can access this function
     #[ink(message)]
     fn initialize(&mut self, token_0: AccountId, token_1: AccountId) -> Result<(), PairError>;
 
@@ -42,6 +44,12 @@ pub trait Pair {
 
     #[ink(message)]
     fn sync(&mut self) -> Result<(), PairError>;
+
+    #[ink(message)]
+    fn get_token_0(&self) -> AccountId;
+
+    #[ink(message)]
+    fn get_token_1(&self) -> AccountId;
 
     fn _safe_transfer(
         &mut self,
@@ -77,6 +85,7 @@ pub trait Pair {
         _amount_1_out: Balance,
         _to: AccountId,
     );
+    fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance);
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -85,6 +94,7 @@ pub enum PairError {
     PSP22Error(PSP22Error),
     OwnableError(OwnableError),
     PausableError(PausableError),
+    ReentrancyGuardError(ReentrancyGuardError),
     K,
     InsufficientLiquidityMinted,
     InsufficientLiquidityBurned,
@@ -108,6 +118,7 @@ pub enum PairError {
     SubUnderFlow11,
     SubUnderFlow12,
     SubUnderFlow13,
+    SubUnderFlow14,
     MulOverFlow1,
     MulOverFlow2,
     MulOverFlow3,
@@ -121,10 +132,14 @@ pub enum PairError {
     MulOverFlow11,
     MulOverFlow12,
     MulOverFlow13,
+    MulOverFlow14,
+    MulOverFlow15,
     DivByZero1,
     DivByZero2,
     DivByZero3,
     DivByZero4,
+    DivByZero5,
+    AddOverflow1,
 }
 
 impl From<OwnableError> for PairError {
@@ -142,5 +157,11 @@ impl From<PausableError> for PairError {
 impl From<PSP22Error> for PairError {
     fn from(error: PSP22Error) -> Self {
         PairError::PSP22Error(error)
+    }
+}
+
+impl From<ReentrancyGuardError> for PairError {
+    fn from(error: ReentrancyGuardError) -> Self {
+        PairError::ReentrancyGuardError(error)
     }
 }

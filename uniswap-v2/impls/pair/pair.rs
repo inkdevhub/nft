@@ -1,17 +1,17 @@
+use crate::traits::factory::FactoryRef;
 pub use crate::{
     impls::pair::*,
     traits::pair::*,
 };
 use ink_env::CallFlags;
 use ink_prelude::vec::Vec;
-use ink_storage::traits::push_spread_root;
 use openbrush::{
     contracts::{
         ownable::*,
         psp22::*,
+        reentrancy_guard::*,
         traits::psp22::PSP22Ref,
     },
-    modifier_definition,
     modifiers,
     traits::{
         AccountId,
@@ -21,10 +21,17 @@ use openbrush::{
         ZERO_ADDRESS,
     },
 };
+use primitive_types::U256;
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
 
-impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pair for T {
+impl<
+        T: Storage<data::Data>
+            + Storage<ownable::Data>
+            + Storage<psp22::Data>
+            + Storage<reentrancy_guard::Data>,
+    > Pair for T
+{
     default fn get_reserves(&self) -> (Balance, Balance, Timestamp) {
         (
             self.data::<data::Data>().reserve_0,
@@ -44,7 +51,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok(())
     }
 
-    #[modifiers(lock)]
+    #[modifiers(non_reentrant)]
     default fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
         let reserves = self.get_reserves();
         let contract = Self::env().account_id();
@@ -64,10 +71,10 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         if total_supply == 0 {
             let liq = amount_0
                 .checked_mul(amount_1)
-                .ok_or(PairError::MulOverFlow1)?
+                .ok_or(PairError::MulOverFlow1)?;
+            liquidity = sqrt(liq)
                 .checked_sub(MINIMUM_LIQUIDITY)
                 .ok_or(PairError::SubUnderFlow3)?;
-            liquidity = sqrt(liq);
             self._mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
         } else {
             let liquidity_1 = amount_0
@@ -104,7 +111,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok(liquidity)
     }
 
-    #[modifiers(lock)]
+    #[modifiers(non_reentrant)]
     default fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError> {
         let reserves = self.get_reserves();
         let contract = Self::env().account_id();
@@ -127,7 +134,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
             .checked_div(total_supply)
             .ok_or(PairError::DivByZero4)?;
 
-        if amount_0 == 0 || amount_0 == 0 {
+        if amount_0 == 0 || amount_1 == 0 {
             return Err(PairError::InsufficientLiquidityBurned)
         }
 
@@ -154,8 +161,8 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok((amount_0, amount_1))
     }
 
-    #[modifiers(lock)]
-    fn swap(
+    #[modifiers(non_reentrant)]
+    default fn swap(
         &mut self,
         amount_0_out: Balance,
         amount_1_out: Balance,
@@ -234,13 +241,9 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
             .checked_sub(amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow11)?)
             .ok_or(PairError::SubUnderFlow11)?;
 
-        if balance_0_adjusted
-            .checked_mul(balance_1_adjusted)
-            .ok_or(PairError::MulOverFlow12)?
-            < reserves
-                .0
-                .checked_mul(reserves.1)
-                .ok_or(PairError::MulOverFlow13)?
+        // Cast to U256 to prevent Overflow
+        if U256::from(balance_0_adjusted) * U256::from(balance_1_adjusted)
+            < U256::from(reserves.0) * U256::from(reserves.1) * U256::from(1000u128.pow(2))
         {
             return Err(PairError::K)
         }
@@ -258,8 +261,8 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok(())
     }
 
-    #[modifiers(lock)]
-    fn skim(&mut self, to: AccountId) -> Result<(), PairError> {
+    #[modifiers(non_reentrant)]
+    default fn skim(&mut self, to: AccountId) -> Result<(), PairError> {
         let contract = Self::env().account_id();
         let reserve_0 = self.data::<data::Data>().reserve_0;
         let reserve_1 = self.data::<data::Data>().reserve_1;
@@ -284,8 +287,8 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         Ok(())
     }
 
-    #[modifiers(lock)]
-    fn sync(&mut self) -> Result<(), PairError> {
+    #[modifiers(non_reentrant)]
+    default fn sync(&mut self) -> Result<(), PairError> {
         let contract = Self::env().account_id();
         let reserve_0 = self.data::<data::Data>().reserve_0;
         let reserve_1 = self.data::<data::Data>().reserve_1;
@@ -294,6 +297,14 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         let balance_0 = PSP22Ref::balance_of(&token_0, contract);
         let balance_1 = PSP22Ref::balance_of(&token_1, contract);
         self._update(balance_0, balance_1, reserve_0, reserve_1)
+    }
+
+    default fn get_token_0(&self) -> AccountId {
+        self.data::<data::Data>().token_0
+    }
+
+    default fn get_token_1(&self) -> AccountId {
+        self.data::<data::Data>().token_1
     }
 
     default fn _safe_transfer(
@@ -311,11 +322,46 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
 
     default fn _mint_fee(
         &mut self,
-        _reserve_0: Balance,
-        _reserve_1: Balance,
+        reserve_0: Balance,
+        reserve_1: Balance,
     ) -> Result<bool, PairError> {
-        // TODO update when factory contract is done
-        Ok(true)
+        let fee_to = FactoryRef::fee_to(&self.data::<data::Data>().factory);
+        let fee_on = fee_to != ZERO_ADDRESS.into();
+        let k_last = self.data::<data::Data>().k_last;
+        if fee_on {
+            if k_last != 0 {
+                let root_k = sqrt(
+                    reserve_0
+                        .checked_mul(reserve_1)
+                        .ok_or(PairError::MulOverFlow14)?,
+                );
+                let root_k_last = sqrt(k_last);
+                if root_k > root_k_last {
+                    let total_supply = self.data::<psp22::Data>().supply;
+                    let numerator = total_supply
+                        .checked_mul(
+                            root_k
+                                .checked_sub(root_k_last)
+                                .ok_or(PairError::SubUnderFlow14)?,
+                        )
+                        .ok_or(PairError::MulOverFlow15)?;
+                    let denominator = root_k
+                        .checked_mul(5)
+                        .ok_or(PairError::MulOverFlow15)?
+                        .checked_add(root_k_last)
+                        .ok_or(PairError::AddOverflow1)?;
+                    let liquidity = numerator
+                        .checked_div(denominator)
+                        .ok_or(PairError::DivByZero5)?;
+                    if liquidity > 0 {
+                        self._mint(fee_to, liquidity)?;
+                    }
+                }
+            }
+        } else if k_last != 0 {
+            self.data::<data::Data>().k_last = 0;
+        }
+        Ok(fee_on)
     }
 
     default fn _update(
@@ -344,6 +390,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         self.data::<data::Data>().reserve_1 = balance_1;
         self.data::<data::Data>().block_timestamp_last = now;
 
+        self._emit_sync_event(reserve_0, reserve_1);
         Ok(())
     }
 
@@ -367,6 +414,7 @@ impl<T: Storage<data::Data> + Storage<ownable::Data> + Storage<psp22::Data>> Pai
         _to: AccountId,
     ) {
     }
+    default fn _emit_sync_event(&self, _reserve_0: Balance, _reserve_1: Balance) {}
 }
 
 fn min(x: u128, y: u128) -> u128 {
@@ -387,24 +435,4 @@ fn sqrt(y: u128) -> u128 {
         }
     }
     z
-}
-
-#[modifier_definition]
-pub fn lock<T, F, R, E>(instance: &mut T, body: F) -> Result<R, E>
-where
-    T: Storage<data::Data>,
-    F: FnOnce(&mut T) -> Result<R, E>,
-    E: From<PairError>,
-{
-    if instance.data().lock {
-        return Err(From::from(PairError::Locked))
-    }
-    instance.data().lock = true;
-
-    push_spread_root(instance.data(), &Default::default());
-
-    let result = body(instance);
-    instance.data().lock = false;
-
-    return result
 }

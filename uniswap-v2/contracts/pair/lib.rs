@@ -16,6 +16,7 @@ pub mod pair {
                 Internal,
                 *,
             },
+            reentrancy_guard,
         },
         traits::Storage,
     };
@@ -54,6 +55,21 @@ pub mod pair {
         pub to: AccountId,
     }
 
+    #[ink(event)]
+    pub struct Sync {
+        reserve_0: Balance,
+        reserve_1: Balance,
+    }
+
+    #[ink(event)]
+    pub struct Transfer {
+        #[ink(topic)]
+        from: Option<AccountId>,
+        #[ink(topic)]
+        to: Option<AccountId>,
+        value: Balance,
+    }
+
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
     pub struct PairContract {
@@ -61,6 +77,8 @@ pub mod pair {
         psp22: psp22::Data,
         #[storage_field]
         ownable: ownable::Data,
+        #[storage_field]
+        guard: reentrancy_guard::Data,
         #[storage_field]
         pair: data::Data,
     }
@@ -146,6 +164,19 @@ pub mod pair {
             self._emit_transfer_event(Some(from), Some(to), amount);
             Ok(())
         }
+
+        fn _emit_transfer_event(
+            &self,
+            from: Option<AccountId>,
+            to: Option<AccountId>,
+            amount: Balance,
+        ) {
+            self.env().emit_event(Transfer {
+                from,
+                to,
+                value: amount,
+            });
+        }
     }
 
     impl Ownable for PairContract {}
@@ -192,6 +223,13 @@ pub mod pair {
                 to,
             })
         }
+
+        fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance) {
+            self.env().emit_event(Sync {
+                reserve_0,
+                reserve_1,
+            })
+        }
     }
 
     impl PairContract {
@@ -200,6 +238,7 @@ pub mod pair {
             ink_lang::codegen::initialize_contract(|instance: &mut Self| {
                 let caller = instance.env().caller();
                 instance._init_with_owner(caller);
+                instance.pair.factory = caller;
             })
         }
     }
