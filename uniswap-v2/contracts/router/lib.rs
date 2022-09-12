@@ -111,28 +111,6 @@ mod router {
             self._get_amount_in(amount_out, reserve_in, reserve_out)
         }
 
-        // TODO
-        #[ink(message)]
-        pub fn get_amounts_out(
-            &self,
-            _factory: AccountId,
-            _amount_in: Balance,
-            _path: Vec<AccountId>,
-        ) -> Result<Vec<Balance>, RouterError> {
-            Ok(Vec::<Balance>::new())
-        }
-
-        // TODO
-        #[ink(message)]
-        pub fn get_amounts_in(
-            &self,
-            _factory: AccountId,
-            _amount_out: Balance,
-            _path: Vec<AccountId>,
-        ) -> Result<Vec<Balance>, RouterError> {
-            Ok(Vec::<Balance>::new())
-        }
-
         #[ink(message)]
         pub fn add_liquidity(
             &mut self,
@@ -151,9 +129,26 @@ mod router {
                 amount_a_min,
                 amount_b_min,
             )?;
+
             let pair_contract = self._pair_for(self.factory, token_a, token_b)?;
-            self._safe_transfer(token_a, pair_contract, amount_a)?;
-            self._safe_transfer(token_b, pair_contract, amount_b)?;
+
+            // self._safe_transfer(token_a, pair_contract, amount_a)?;
+            // self._safe_transfer(token_b, pair_contract, amount_b)?;
+            PSP22Ref::transfer_from(
+                &token_a,
+                self.env().caller(),
+                pair_contract,
+                amount_a,
+                Vec::new(),
+            )?;
+            PSP22Ref::transfer_from(
+                &token_b,
+                self.env().caller(),
+                pair_contract,
+                amount_b,
+                Vec::new(),
+            )?;
+
             let liquidity = PairRef::mint(&pair_contract, self.env().caller())?;
 
             Ok((amount_a, amount_b, liquidity))
@@ -294,7 +289,9 @@ mod router {
             token_b: AccountId,
         ) -> Result<(Balance, Balance), RouterError> {
             let (token_0, _) = self._sort_tokens(token_a, token_b)?;
-            let (reserve_0, reserve_1, _) = PairRef::get_reserves(&factory);
+            // get pair contract address from factory
+            let pair_contract = self._pair_for(factory, token_a, token_b)?;
+            let (reserve_0, reserve_1, _) = PairRef::get_reserves(&pair_contract);
 
             if token_a == token_0 {
                 Ok((reserve_0, reserve_1))
@@ -339,7 +336,6 @@ mod router {
             };
 
             let (reserve_a, reserve_b) = self._get_reserves(self.factory, token_a, token_b)?;
-
             if reserve_a == 0 && reserve_b == 0 {
                 return Ok((amount_a_desired, amount_b_desired))
             }
