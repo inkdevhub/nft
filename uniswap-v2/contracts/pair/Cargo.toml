@@ -16,7 +16,7 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 openbrush = { version = "2.2.0", default-features = false, features = ["psp22", "ownable", "reentrancy_guard"] }
-uniswap_v2 = { path = "../..", default-features = false }
+uniswap_v2 = { path = "../../logics", default-features = false }
 
 [lib]
 name = "pair_contract"

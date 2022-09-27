@@ -17,7 +17,7 @@ scale-info = { version = "2", default-features = false, features = ["derive"], o
 
 pair_contract = { path = "../pair", default-features = false, features = ["ink-as-dependency"] }
 openbrush = { version = "2.2.0", default-features = false }
-uniswap_v2 = { path = "../..", default-features = false }
+uniswap_v2 = { path = "../../logics", default-features = false }
 
 [lib]
 name = "factory_contract"
