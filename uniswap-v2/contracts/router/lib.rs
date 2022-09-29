@@ -2,6 +2,7 @@
 
 #[openbrush::contract]
 mod router {
+    use primitive_types::U256;
     use ink_env::CallFlags;
     use ink_prelude::vec::Vec;
     use ink_storage::traits::SpreadAllocate;
@@ -39,6 +40,7 @@ mod router {
         ZeroAddress,
         IdenticalAddresses,
         Expired,
+        AddOverFlow,
         SubUnderFlow,
         MulOverFlow,
         DivByZero,
@@ -209,15 +211,22 @@ mod router {
                 return Err(RouterError::InsufficientLiquidity)
             }
 
-            let amount_b = amount_a
-                .checked_mul(reserve_b)
+            ink_env::debug_println!("Balance amount_a {:?}", amount_a);
+            ink_env::debug_println!("Balance reserve_a {:?}", reserve_a);
+            ink_env::debug_println!("Balance reserve_b {:?}", reserve_b);
+
+            let amount_b: Balance = U256::from(amount_a)
+                .checked_mul(U256::from(reserve_b))
                 .ok_or(RouterError::MulOverFlow)?
-                .checked_div(reserve_a)
-                .ok_or(RouterError::DivByZero)?;
+                .checked_div(U256::from(reserve_a))
+                .ok_or(RouterError::DivByZero)?
+                .as_u128();
+
+            ink_env::debug_println!("Result: Balance amount_b {:?}", amount_b);
 
             Ok(amount_b)
         }
-
+        
         fn _get_amount_out(
             &self,
             amount_in: Balance,
@@ -231,20 +240,23 @@ mod router {
                 return Err(RouterError::InsufficientLiquidity)
             }
 
-            let amount_in_with_fee = amount_in.checked_mul(997).ok_or(RouterError::MulOverFlow)?;
-
-            let numerator = amount_in_with_fee
-                .checked_mul(reserve_out)
+            let amount_in_with_fee = U256::from(amount_in)
+                .checked_mul(U256::from(997))
                 .ok_or(RouterError::MulOverFlow)?;
 
-            let denominator = reserve_in
-                .checked_mul(1000)
+            let numerator = amount_in_with_fee
+                .checked_mul(U256::from(reserve_out))
+                .ok_or(RouterError::MulOverFlow)?;
+
+            let denominator = U256::from(reserve_in)
+                .checked_mul(U256::from(1000))
                 .ok_or(RouterError::MulOverFlow)?
                 + amount_in_with_fee;
 
-            let amount_out = numerator
+            let amount_out: Balance = numerator
                 .checked_div(denominator)
-                .ok_or(RouterError::DivByZero)?;
+                .ok_or(RouterError::DivByZero)?
+                .as_u128();
 
             Ok(amount_out)
         }
@@ -262,22 +274,24 @@ mod router {
                 return Err(RouterError::InsufficientLiquidity)
             }
 
-            let numerator = reserve_in
-                .checked_mul(amount_out)
+            let numerator: U256 = U256::from(reserve_in)
+                .checked_mul(U256::from(amount_out))
                 .ok_or(RouterError::MulOverFlow)?
-                .checked_mul(1000)
+                .checked_mul(U256::from(1000))
                 .ok_or(RouterError::MulOverFlow)?;
 
-            let denominator = reserve_out
-                .checked_sub(amount_out)
+            let denominator: U256 = U256::from(reserve_out)
+                .checked_sub(U256::from(amount_out))
                 .ok_or(RouterError::SubUnderFlow)?
-                .checked_mul(997)
+                .checked_mul(U256::from(997))
                 .ok_or(RouterError::MulOverFlow)?;
 
-            let amount_in = numerator
+            let amount_in: Balance = numerator
                 .checked_div(denominator)
-                .ok_or(RouterError::MulOverFlow)?
-                + 1;
+                .ok_or(RouterError::DivByZero)?
+                .checked_add(U256::from(1))
+                .ok_or(RouterError::AddOverFlow)?
+                .as_u128();
 
             Ok(amount_in)
         }
@@ -386,19 +400,6 @@ mod router {
                 .fire()
                 .unwrap()?;
             Ok(())
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        use ink_lang as ink;
-
-        #[ink::test]
-        fn default_works() {
-            let router = Router::default();
-            assert_eq!(router.get(), false);
         }
     }
 }
