@@ -21,7 +21,7 @@ openbrush = { version = "2.2.0", default-features = false, features = ["psp22"] 
 uniswap_v2 = { path = "../../logics", default-features = false }
 
 [lib]
-name = "router"
+name = "router_contract"
 path = "lib.rs"
 crate-type = ["cdylib"]
 

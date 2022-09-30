@@ -3,7 +3,7 @@
 #[openbrush::contract]
 mod router {
     use primitive_types::U256;
-    use ink_env::CallFlags;
+    use ink_env::{CallFlags};
     use ink_prelude::vec::Vec;
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
@@ -122,7 +122,13 @@ mod router {
             amount_b_desired: Balance,
             amount_a_min: Balance,
             amount_b_min: Balance,
+            to: AccountId,
+            dead_line: u64,
         ) -> Result<(Balance, Balance, Balance), RouterError> {
+            if dead_line <= self.env().block_timestamp() {
+                return Err(RouterError::Expired)
+            }
+
             let (amount_a, amount_b) = self._add_liquidity(
                 token_a,
                 token_b,
@@ -132,26 +138,31 @@ mod router {
                 amount_b_min,
             )?;
 
+            ink_env::debug_println!("AddLiquidity amount_a {:?}", amount_a);
+            ink_env::debug_println!("AddLiquidity amount_b {:?}", amount_b);
+
             let pair_contract = self._pair_for(self.factory, token_a, token_b)?;
 
-            // self._safe_transfer(token_a, pair_contract, amount_a)?;
-            // self._safe_transfer(token_b, pair_contract, amount_b)?;
-            PSP22Ref::transfer_from(
-                &token_a,
-                self.env().caller(),
-                pair_contract,
-                amount_a,
-                Vec::new(),
-            )?;
-            PSP22Ref::transfer_from(
-                &token_b,
-                self.env().caller(),
-                pair_contract,
-                amount_b,
-                Vec::new(),
-            )?;
+            ink_env::debug_println!("Pair contract address {:?}", pair_contract);
 
-            let liquidity = PairRef::mint(&pair_contract, self.env().caller())?;
+            self._safe_transfer(token_a, pair_contract, amount_a)?;
+            self._safe_transfer(token_b, pair_contract, amount_b)?;
+            // PSP22Ref::transfer_from(
+                // &token_a,
+                // self.env().caller(),
+                // pair_contract,
+                // amount_a,
+                // Vec::new(),
+            // )?;
+            // PSP22Ref::transfer_from(
+                // &token_b,
+                // self.env().caller(),
+                // pair_contract,
+                // amount_b,
+                // Vec::new(),
+            // )?;
+
+            let liquidity = PairRef::mint(&pair_contract, to)?;
 
             Ok((amount_a, amount_b, liquidity))
         }

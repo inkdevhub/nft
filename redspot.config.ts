@@ -69,6 +69,25 @@ export default {
                         AddOverflow1: null,
                     },
                 },
+                RouterContractRouterRouterError: {
+                    _enum: {
+                        PSP22Error: 'PSP22Error',
+                        FactoryError: '',
+                        PairError: 'UniswapV2PairPairError',
+                        PairNotFound: null,
+                        InsufficientAmount: null,
+                        InsufficientAAmount: null,
+                        InsufficientBAmount: null,
+                        InsufficientLiquidity: null,
+                        ZeroAddress: null,
+                        IdenticalAddresses: null,
+                        Expired: null,
+                        AddOverFlow: null,
+                        SubUnderFlow: null,
+                        MulOverFlow: null,
+                        DivByZero: null,
+                    }
+                },
                 PSP22Error: {
                     _enum: {
                         Custom: 'String',
@@ -100,7 +119,7 @@ export default {
                         ZeroSenderAddress: null,
                         SafeTransferCheckFailed: 'String',
                     }
-                }
+                },
             },
         },
         substrate: {
