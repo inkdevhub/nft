@@ -11,7 +11,7 @@ mod router {
             psp22::PSP22Error,
             traits::psp22::PSP22Ref,
         },
-        traits::ZERO_ADDRESS,
+        traits::{ZERO_ADDRESS},
     };
 
     use uniswap_v2::traits::{
@@ -145,30 +145,32 @@ mod router {
 
             ink_env::debug_println!("Pair contract address {:?}", pair_contract);
 
-            self._safe_transfer(token_a, pair_contract, amount_a)?;
-            self._safe_transfer(token_b, pair_contract, amount_b)?;
-            // PSP22Ref::transfer_from(
-                // &token_a,
-                // self.env().caller(),
-                // pair_contract,
-                // amount_a,
-                // Vec::new(),
-            // )?;
-            // PSP22Ref::transfer_from(
-                // &token_b,
-                // self.env().caller(),
-                // pair_contract,
-                // amount_b,
-                // Vec::new(),
-            // )?;
+            // self._safe_transfer(token_a, pair_contract, amount_a)?;
+            // self._safe_transfer(token_b, pair_contract, amount_b)?;
+            PSP22Ref::transfer_from(
+                &token_a,
+                self.env().caller(),
+                pair_contract,
+                amount_a,
+                Vec::new(),
+            )?;
+            PSP22Ref::transfer_from(
+                &token_b,
+                self.env().caller(),
+                pair_contract,
+                amount_b,
+                Vec::new(),
+            )?;
 
             let liquidity = PairRef::mint(&pair_contract, to)?;
+            
+            ink_env::debug_println!("Liquidity {:?}", liquidity);
 
             Ok((amount_a, amount_b, liquidity))
         }
 
         #[ink(message)]
-        pub fn remove_requidity(
+        pub fn remove_lequidity(
             &mut self,
             token_a: AccountId,
             token_b: AccountId,
@@ -183,6 +185,9 @@ mod router {
             }
 
             let pair_contract = self._pair_for(self.factory, token_a, token_b)?;
+
+            ink_env::debug_println!("Pair contract address {:?}", pair_contract);
+
             PSP22Ref::transfer_from(
                 &pair_contract,
                 self.env().caller(),
@@ -191,6 +196,8 @@ mod router {
                 Vec::new(),
             )?;
 
+            ink_env::debug_println!("Liquidity token transfered");
+
             let (amount_0, amount_1) = PairRef::burn(&pair_contract, to)?;
             let (token_0, _) = self._sort_tokens(token_a, token_b)?;
             let (amount_a, amount_b) = if token_a == token_0 {
@@ -198,6 +205,9 @@ mod router {
             } else {
                 (amount_1, amount_0)
             };
+
+            ink_env::debug_println!("RemoveLiquidity amount_a {:?}", amount_a);
+            ink_env::debug_println!("RemoveLiquidity amount_b {:?}", amount_b);
 
             if amount_a < amount_a_min {
                 return Err(RouterError::InsufficientAAmount)
@@ -252,7 +262,7 @@ mod router {
             }
 
             let amount_in_with_fee = U256::from(amount_in)
-                .checked_mul(U256::from(997))
+                .checked_mul(U256::from(997 as Balance))
                 .ok_or(RouterError::MulOverFlow)?;
 
             let numerator = amount_in_with_fee
@@ -260,9 +270,10 @@ mod router {
                 .ok_or(RouterError::MulOverFlow)?;
 
             let denominator = U256::from(reserve_in)
-                .checked_mul(U256::from(1000))
+                .checked_mul(U256::from(1000 as Balance))
                 .ok_or(RouterError::MulOverFlow)?
-                + amount_in_with_fee;
+                .checked_add(amount_in_with_fee)
+                .ok_or(RouterError::AddOverFlow)?;
 
             let amount_out: Balance = numerator
                 .checked_div(denominator)
@@ -288,19 +299,19 @@ mod router {
             let numerator: U256 = U256::from(reserve_in)
                 .checked_mul(U256::from(amount_out))
                 .ok_or(RouterError::MulOverFlow)?
-                .checked_mul(U256::from(1000))
+                .checked_mul(U256::from(1000 as Balance))
                 .ok_or(RouterError::MulOverFlow)?;
 
             let denominator: U256 = U256::from(reserve_out)
                 .checked_sub(U256::from(amount_out))
                 .ok_or(RouterError::SubUnderFlow)?
-                .checked_mul(U256::from(997))
+                .checked_mul(U256::from(997 as Balance))
                 .ok_or(RouterError::MulOverFlow)?;
 
             let amount_in: Balance = numerator
                 .checked_div(denominator)
                 .ok_or(RouterError::DivByZero)?
-                .checked_add(U256::from(1))
+                .checked_add(U256::from(1 as Balance))
                 .ok_or(RouterError::AddOverFlow)?
                 .as_u128();
 
