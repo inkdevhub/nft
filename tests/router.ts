@@ -39,20 +39,20 @@ describe('ROUTER', () => {
         let tokenAAmount = ONE
         let tokenAReserve = ONE
         let tokenBReserve = ONE
-        let res = await router.query["quote"](tokenAAmount, tokenAReserve, tokenBReserve)
+        let res = await router.query["router::quote"](tokenAAmount, tokenAReserve, tokenBReserve)
         expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: '1,000,000,000,000,000,000' }))
 
         // success case
         tokenAAmount = ONE
         tokenAReserve = ONE.divn(2)
         tokenBReserve = ONE.muln(2)
-        res = await router.query["quote"](tokenAAmount, tokenAReserve, tokenBReserve)
+        res = await router.query["router::quote"](tokenAAmount, tokenAReserve, tokenBReserve)
         expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: "4,000,000,000,000,000,000" }))
 
         tokenAAmount = ONE.muln(1000)
         tokenAReserve = ONE.muln(10)
         tokenBReserve = ONE.muln(1000)
-        res = await router.query["quote"](tokenAAmount, tokenAReserve, tokenBReserve)
+        res = await router.query["router::quote"](tokenAAmount, tokenAReserve, tokenBReserve)
         expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: "100,000,000,000,000,000,000,000" }))
     })
 
@@ -62,7 +62,7 @@ describe('ROUTER', () => {
         let amountIn = ONE.muln(1000)
         let reserveIn = ONE.muln(1000)
         let reserveOut = ONE.muln(1000)
-        let res = await router.query["getAmountOut"](amountIn, reserveIn, reserveOut)
+        let res = await router.query["router::getAmountOut"](amountIn, reserveIn, reserveOut)
         expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: "499,248,873,309,964,947,421" }))
     })
 

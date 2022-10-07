@@ -4,7 +4,7 @@ pub use crate::{
     impls::router::*,
     traits::router::*,
 };
-use ink_prelude::vec::Vec;
+use ink_prelude::{vec, vec::Vec};
 use openbrush::{
     contracts::{
         traits::psp22::PSP22Ref,
@@ -51,6 +51,24 @@ impl<T: Storage<data::Data>> Router for T
         self._get_amount_in(amount_out, reserve_in, reserve_out)
     }
 
+    default fn get_amounts_out(
+        &self,
+        amount_in: Balance,
+        path: Vec<AccountId>,
+    ) -> Result<Vec<Balance>, RouterError> {
+        let factory = self.data::<data::Data>().factory;
+        self._get_amounts_out(factory, amount_in, path)
+    }
+
+    default fn get_amounts_in(
+        &self,
+        amount_out: Balance,
+        path: Vec<AccountId>,
+    ) -> Result<Vec<Balance>, RouterError> {
+        let factory = self.data::<data::Data>().factory;
+        self._get_amounts_in(factory, amount_out, path)
+    }
+
     default fn add_liquidity(
         &mut self,
         token_a: AccountId,
@@ -60,9 +78,9 @@ impl<T: Storage<data::Data>> Router for T
         amount_a_min: Balance,
         amount_b_min: Balance,
         to: AccountId,
-        dead_line: u64,
+        deadline: u64,
     ) ->  Result<(Balance, Balance, Balance), RouterError> {
-        if dead_line <= Self::env().block_timestamp() {
+        if deadline <= Self::env().block_timestamp() {
             return Err(RouterError::Expired)
         }
 
@@ -108,9 +126,9 @@ impl<T: Storage<data::Data>> Router for T
         amount_a_min: Balance,
         amount_b_min: Balance,
         to: AccountId,
-        dead_line: u64,
+        deadline: u64,
     ) -> Result<(Balance, Balance), RouterError> {
-        if dead_line <= Self::env().block_timestamp() {
+        if deadline <= Self::env().block_timestamp() {
             return Err(RouterError::Expired)
         }
 
@@ -143,6 +161,70 @@ impl<T: Storage<data::Data>> Router for T
         Ok((amount_a, amount_b))
     }
 
+    default fn swap_exact_tokens_for_tokens(
+        &mut self,
+        amount_in: Balance,
+        amount_out_min: Balance,
+        path: Vec<AccountId>,
+        to: AccountId,
+        deadline: u64,
+    ) -> Result<Vec<Balance>, RouterError> {
+        if deadline <= Self::env().block_timestamp() {
+            return Err(RouterError::Expired)
+        }
+
+        let factory = self.data::<data::Data>().factory;
+        let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_in, path.clone())?;
+        if amounts[amounts.len()-1] < amount_out_min {
+            return Err(RouterError::InsufficientOutputAmount)
+        }
+
+        let pair_contract = self._pair_for(factory, path[0], path[1])?;
+        PSP22Ref::transfer_from(
+            &path[0],
+            Self::env().caller(),
+            pair_contract,
+            amounts[0],
+            Vec::new(),
+        )?;
+
+        self._swap(amounts.clone(), path, to)?;
+
+        Ok(amounts)
+    }
+
+    default fn swap_tokens_for_exact_tokens(
+        &mut self,
+        amount_out: Balance,
+        amount_in_max: Balance,
+        path: Vec<AccountId>,
+        to: AccountId,
+        deadline: u64,
+    ) -> Result<Vec<Balance>, RouterError> {
+        if deadline <= Self::env().block_timestamp() {
+            return Err(RouterError::Expired)
+        }
+
+        let factory = self.data::<data::Data>().factory;
+        let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_out, path.clone())?;
+        if amount_in_max < amounts[0] {
+            return Err(RouterError::ExcessiveInputAmount)
+        }
+
+        let pair_contract = self._pair_for(factory, path[0], path[1])?;
+        PSP22Ref::transfer_from(
+            &path[0],
+            Self::env().caller(),
+            pair_contract,
+            amounts[0],
+            Vec::new(),
+        )?;
+
+        self._swap(amounts.clone(), path, to)?;
+
+        Ok(amounts)
+    }
+
     default fn _quote(
         &self,
         amount_a: Balance,
@@ -158,8 +240,8 @@ impl<T: Storage<data::Data>> Router for T
 
         let amount_b: Balance = casted_mul(amount_a, reserve_b)
             .checked_div(U256::from(reserve_a))
-            .ok_or(RouterError::DivByZero)?
-            .as_u128();
+            .ok_or(RouterError::DivByZero1)?
+            .try_into().map_err(|_| RouterError::CastOverflow1)?;
 
         Ok(amount_b)
     }
@@ -181,18 +263,76 @@ impl<T: Storage<data::Data>> Router for T
 
         let numerator = amount_in_with_fee
             .checked_mul(U256::from(reserve_out))
-            .ok_or(RouterError::MulOverFlow)?;
+            .ok_or(RouterError::MulOverFlow1)?;
 
         let denominator = casted_mul(reserve_in, 1000)
             .checked_add(amount_in_with_fee)
-            .ok_or(RouterError::AddOverFlow)?;
+            .ok_or(RouterError::AddOverFlow1)?;
 
         let amount_out: Balance = numerator
             .checked_div(denominator)
-            .ok_or(RouterError::DivByZero)?
-            .as_u128();
+            .ok_or(RouterError::DivByZero2)?
+            .try_into().map_err(|_| RouterError::CastOverflow1)?;
 
         Ok(amount_out)
+    }
+
+    default fn _get_amounts_out(
+        &self,
+        factory: AccountId,
+        amount_in: Balance,
+        path: Vec<AccountId>
+    ) -> Result<Vec<Balance>, RouterError> {
+        if path.len() < 2 {
+            return Err(RouterError::InvalidPath)
+        }
+
+        let mut amounts: Vec<Balance> = vec![amount_in];
+        for i in 0..path.len()-1 {
+            let (reserve_in, reserve_out) = self._get_reserves(
+                factory,
+                *path.get(i).ok_or(RouterError::IndexOutOfRange1)?,
+                *path.get(i+1).ok_or(RouterError::IndexOutOfRange2)?
+            )?;
+            amounts.push(
+                self.get_amount_out(
+                    *amounts.get(i).ok_or(RouterError::IndexOutOfRange3)?,
+                    reserve_in,
+                    reserve_out
+                )?
+            );
+        }
+
+        Ok(amounts)
+    }
+
+    default fn _get_amounts_in(
+        &self,
+        factory: AccountId,
+        amount_out: Balance,
+        path: Vec<AccountId>
+    ) -> Result<Vec<Balance>, RouterError> {
+        if path.len() < 2 {
+            return Err(RouterError::InvalidPath)
+        }
+
+        let mut amounts: Vec<Balance> = vec![amount_out];
+        for i in 0..path.len()-1 {
+            let (reserve_in, reserve_out) = self._get_reserves(
+                factory,
+                *path.get(i).ok_or(RouterError::IndexOutOfRange4)?,
+                *path.get(i+1).ok_or(RouterError::IndexOutOfRange5)?
+            )?;
+            amounts.push(
+                self.get_amount_in(
+                    *amounts.get(i).ok_or(RouterError::IndexOutOfRange6)?,
+                    reserve_in,
+                    reserve_out
+                )?
+            );
+        }
+
+        Ok(amounts)
     }
 
     default fn _get_amount_in(
@@ -210,22 +350,22 @@ impl<T: Storage<data::Data>> Router for T
 
         let numerator: U256 = U256::from(reserve_in)
             .checked_mul(U256::from(amount_out))
-            .ok_or(RouterError::MulOverFlow)?
+            .ok_or(RouterError::MulOverFlow2)?
             .checked_mul(U256::from(1000))
-            .ok_or(RouterError::MulOverFlow)?;
+            .ok_or(RouterError::MulOverFlow3)?;
 
         let denominator: U256 = U256::from(reserve_out)
             .checked_sub(U256::from(amount_out))
-            .ok_or(RouterError::SubUnderFlow)?
+            .ok_or(RouterError::SubUnderFlow1)?
             .checked_mul(U256::from(997))
-            .ok_or(RouterError::MulOverFlow)?;
+            .ok_or(RouterError::MulOverFlow4)?;
 
         let amount_in: Balance = numerator
             .checked_div(denominator)
-            .ok_or(RouterError::DivByZero)?
+            .ok_or(RouterError::DivByZero3)?
             .checked_add(U256::from(1 as Balance))
-            .ok_or(RouterError::AddOverFlow)?
-            .as_u128();
+            .ok_or(RouterError::AddOverFlow2)?
+            .try_into().map_err(|_| RouterError::CastOverflow1)?;
 
         Ok(amount_in)    
     }
@@ -266,6 +406,42 @@ impl<T: Storage<data::Data>> Router for T
         }
     }
 
+    default fn _swap(
+        &mut self,
+        amounts: Vec<Balance>,
+        path: Vec<AccountId>,
+        to: AccountId,
+    ) -> Result<(), RouterError> {
+        let factory = self.data::<data::Data>().factory;
+
+        for i in 0..path.len()-1 {
+            let (input, output) = (path[i], path[i+1]);
+            let (token_0, _) = self._sort_tokens(input, output)?;
+            let amount_out: Balance = amounts[i+1];
+
+            let (amount_0_out, amount_1_out) = if input == token_0 {
+                (0, amount_out)
+            } else {
+                (amount_out, 0)
+            };
+
+            let to = if i < path.len() - 2 {
+                self._pair_for(factory, output, path[i+2])?
+            } else {
+                to
+            };
+
+            PairRef::swap(
+                &self._pair_for(factory, input, output)?,
+                amount_0_out,
+                amount_1_out,
+                to
+            )?;
+        }
+
+        Ok(())
+    }
+
     default fn _pair_for(
         &self,
         factory: AccountId,
@@ -274,10 +450,10 @@ impl<T: Storage<data::Data>> Router for T
     ) -> Result<AccountId, RouterError> {
         let (token_0, token_1) = self._sort_tokens(token_a, token_b)?;
 
-        // Original Uniswap Library pairFor function calculate pair contract address without making external calls.
+        // Original Uniswap Library pairFor function calculate pair contract address without making cross contract calls.
         // Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
 
-        // In this contract, use external call to get pair contract address.
+        // In this contract, use cross contract call to get pair contract address.
         let pair = FactoryRef::get_pair(&factory, token_0, token_1)
             .ok_or(RouterError::PairNotFound)?;
         Ok(pair)
