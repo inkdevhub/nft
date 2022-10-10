@@ -363,7 +363,7 @@ impl<T: Storage<data::Data>> Router for T
         let amount_in: Balance = numerator
             .checked_div(denominator)
             .ok_or(RouterError::DivByZero3)?
-            .checked_add(U256::from(1 as Balance))
+            .checked_add(U256::from(1_000_000_000_000_000_000 as Balance)) // what if chain balance decimal is not 18? it starts not to work
             .ok_or(RouterError::AddOverFlow2)?
             .try_into().map_err(|_| RouterError::CastOverflow1)?;
 

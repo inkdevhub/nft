@@ -2,7 +2,8 @@ import {getWallet, setupContract, attachContract} from './helper'
 import { expect } from "chai";
 import * as BN from "bn.js";
 
-const ONE = new BN(10).pow(new BN(18))
+const Decimal = 18
+const ONE = new BN(10).pow(new BN(Decimal))
 
 describe('ROUTER', () => {
     async function setup() {
@@ -23,7 +24,7 @@ describe('ROUTER', () => {
 
         return {
             wallet,
-            deployer: factory_contract.deployer,
+            deployer: router_contract.deployer,
             token0: token0.contract,
             token1: token1.contract,
             pair: pair_contract.contract,
@@ -35,25 +36,41 @@ describe('ROUTER', () => {
     it('quote', async () => {
         const { router } = await setup()
 
-        // success case
         let tokenAAmount = ONE
         let tokenAReserve = ONE
         let tokenBReserve = ONE
         let res = await router.query["router::quote"](tokenAAmount, tokenAReserve, tokenBReserve)
-        expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: '1,000,000,000,000,000,000' }))
+        expect(res.result.isOk).to.be.true
+        if (res.result.isOk) {
+            expect(parseInt(res.output.toJSON()["ok"], 16) / 10**Decimal).to.equal(1)
+        }
 
-        // success case
         tokenAAmount = ONE
         tokenAReserve = ONE.divn(2)
         tokenBReserve = ONE.muln(2)
         res = await router.query["router::quote"](tokenAAmount, tokenAReserve, tokenBReserve)
-        expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: "4,000,000,000,000,000,000" }))
+        expect(res.result.isOk).to.be.true
+        if (res.result.isOk) {
+            expect(parseInt(res.output.toJSON()["ok"], 16) / 10**Decimal).to.equal(4)
+        }
 
         tokenAAmount = ONE.muln(1000)
         tokenAReserve = ONE.muln(10)
         tokenBReserve = ONE.muln(1000)
         res = await router.query["router::quote"](tokenAAmount, tokenAReserve, tokenBReserve)
-        expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: "100,000,000,000,000,000,000,000" }))
+        expect(res.result.isOk).to.be.true
+        if (res.result.isOk) {
+            expect(BigInt(res.output.toJSON()["ok"]) / BigInt(10**Decimal)).to.equal(100000n)
+        }
+
+        tokenAAmount = ONE.muln(124)
+        tokenAReserve = ONE.muln(234)
+        tokenBReserve = ONE.muln(111)
+        res = await router.query["router::quote"](tokenAAmount, tokenAReserve, tokenBReserve)
+        expect(res.result.isOk).to.be.true
+        if (res.result.isOk) {
+            expect(BigInt(res.output.toJSON()["ok"]) / BigInt(10**Decimal)).to.equal(58n)
+        }
     })
 
     it('get_amount_out', async () => {
@@ -63,18 +80,24 @@ describe('ROUTER', () => {
         let reserveIn = ONE.muln(1000)
         let reserveOut = ONE.muln(1000)
         let res = await router.query["router::getAmountOut"](amountIn, reserveIn, reserveOut)
-        expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: "499,248,873,309,964,947,421" }))
+        expect(res.result.isOk).to.be.true
+        if (res.result.isOk) {
+            expect(BigInt(res.output.toJSON()["ok"]) / BigInt(10**Decimal)).to.equal(499n)
+        }
     })
 
-    // it('get_amount_in', async () => {
-        // const { contract } = await setup()
+    it('get_amount_in', async () => {
+        const { router } = await setup()
 
-        // let amountOut = ONE.muln(100)
-        // let reserveIn = ONE.muln(1000)
-        // let reserveOut = ONE.muln(1000)
-        // let res = await contract.query["getAmountIn"](amountOut, reserveIn, reserveOut)
-        // expect(JSON.stringify(res.output.toHuman())).to.equal(JSON.stringify({ Ok: "" }))
-    // })
+        let amountOut = ONE.muln(450)
+        let reserveIn = ONE.muln(742)
+        let reserveOut = ONE.muln(867)
+        let res = await router.query["router::getAmountIn"](amountOut, reserveIn, reserveOut)
+        expect(res.result.isOk).to.be.true
+        if (res.result.isOk) {
+            expect(BigInt(res.output.toJSON()["ok"]) / BigInt(10**Decimal)).to.equal(804n)
+        }
+    })
 
     it('add_liquidity', async () => {
         const { wallet, token0, token1, pair, router } = await setup()
@@ -82,10 +105,14 @@ describe('ROUTER', () => {
         // transfer token to account
         const token0Amount = ONE.muln(100)
         const token1Amount = ONE.muln(100)
-        await expect(token0.tx['psp22::transfer'](pair.address, token0Amount, [])).to.eventually.be.fulfilled
-        await expect(token1.tx['psp22::transfer'](pair.address, token1Amount, [])).to.eventually.be.fulfilled
+        await expect(token0.tx['psp22::transfer'](wallet.address, token0Amount, [])).to.eventually.be.fulfilled
+        await expect(token1.tx['psp22::transfer'](wallet.address, token1Amount, [])).to.eventually.be.fulfilled
+
+        let res = await token0.query["psp22::balanceOf"](wallet.address)
+        console.log(res.output.toHuman())
 
         // approve router contract
+        // await expect(token0.tx['psp22::approve'](wallet))
 
         // add liquidity
     })
