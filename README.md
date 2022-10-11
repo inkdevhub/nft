@@ -1,13 +1,14 @@
-# Astar WASM contracts examples
-This repository contains examples of ink! contracts that can be deployed on Atar netwroks
+# Astar WASM showcase dApps
+This repository contains examples of ink! contracts and their respective UIs that can be deployed on Atar netwroks.
+If you are looking for unaudited production ready dApps (ink! + UI) this repo is for you.
 
 ### Contribute to this repository
 contributions are welcome:
 - If you find an issue or a refactor idea please open an issue
 - If you want to add your own example open a Pull Request
 
-### Contracts
-#### Uniswap-V2
+### dApps
+#### DEX - Uniswap-V2
 This folder contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) & its tests. It uses [ink! 3.3.0](https://github.com/paritytech/ink/tree/v3.3.0) & [Openbrush 2.2.0](https://github.com/Supercolony-net/openbrush-contracts/tree/v2.2.0)
 
 ### DAO
