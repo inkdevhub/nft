@@ -4,12 +4,35 @@
 import type { Weight } from '@polkadot/types/interfaces';
 import type { BN } from '@polkadot/util';
 import type { UseWeight } from './types';
+import type { ICompact, INumber } from '@polkadot/types/types';
 
 import { useCallback, useMemo, useState } from 'react';
 
 import { createNamedHook, useApi, useBlockInterval } from '@polkadot/react-hooks';
-import { convertWeight } from '@polkadot/react-hooks/useWeight';
 import { BN_MILLION, BN_TEN, BN_ZERO } from '@polkadot/util';
+
+type V1Weight = INumber;
+
+interface V2Weight {
+  refTime: ICompact<INumber>;
+  proofSize: ICompact<INumber>;
+}
+
+interface V2WeightConstruct {
+  refTime: BN | ICompact<INumber>;
+}
+
+export function convertWeight (weight: V1Weight | V2Weight): { v1Weight: BN, v2Weight: V2WeightConstruct } {
+  if ((weight as V2Weight).proofSize) {
+    const refTime = (weight as V2Weight).refTime.toBn();
+
+    return { v1Weight: refTime, v2Weight: weight as V2Weight };
+  }
+
+  const refTime = (weight as V1Weight).toBn();
+
+  return { v1Weight: refTime, v2Weight: { refTime } };
+}
 
 function useWeightImpl (): UseWeight {
   const { api } = useApi();
