@@ -1,0 +1,59 @@
+{
+  "node": {
+    "localPath": "/home/nikhil/astar/flipper/flipper/bin/swanky-node",
+    "polkadotPalletVersions": "polkadot-v0.9.27",
+    "supportedInk": "v3.3.1"
+  },
+  "accounts": [
+    {
+      "alias": "alice",
+      "mnemonic": "//Alice",
+      "isDev": true,
+      "address": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+    },
+    {
+      "alias": "bob",
+      "mnemonic": "//Bob",
+      "isDev": true,
+      "address": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+    }
+  ],
+  "networks": {
+    "local": {
+      "url": "ws://127.0.0.1:9944"
+    },
+    "astar": {
+      "url": "wss://rpc.astar.network"
+    },
+    "shiden": {
+      "url": "wss://rpc.shiden.astar.network"
+    },
+    "shibuya": {
+      "url": "wss://rpc.shibuya.astar.network"
+    }
+  },
+  "contracts": [
+    {
+      "name": "flipper"
+    },
+    {
+      "name": "flipper",
+      "address": "5EieMdDU5tYgoWxcaw1pP9B5TVDCFnN8VRQ7z6Qe6qTGnHEp"
+    },
+    {
+      "name": "flipper",
+      "address": "5GDqDATTVW7iGi1ph3cMR9L7eChgxdZqZ7yTdJNikusDvwK8"
+    },
+    {
+      "name": "flipper"
+    },
+    {
+      "name": "flipper",
+      "address": "5HKZaDCCvBHp7FQKfjmwEJzTGZyCSM5yvo3VANJaoQa6tnMJ"
+    },
+    {
+      "name": "flipper",
+      "address": "5EazoN6UvXJ2Zm8Kt1bcACS32fk2SmNLUcZ98njGx5uV2qd4"
+    }
+  ]
+}
