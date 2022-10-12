@@ -1,5 +1,5 @@
 {
-  "name": "flipper-ui",
+  "name": "flipper-dapp",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,23 +11,13 @@
   "dependencies": {
     "@polkadot/api": "^9.5.1",
     "@polkadot/api-contract": "^9.5.1",
-    "@polkadot/api-derive": "^9.5.1",
-    "@polkadot/app-contracts": "^0.39.1",
-    "@polkadot/jsonrpc": "^1.7.1",
-    "@polkadot/react-components": "^0.39.1",
-    "@polkadot/react-hooks": "^0.39.1",
-    "@polkadot/react-params": "^0.39.1",
-    "@polkadot/react-signer": "^0.39.1",
-    "@polkadot/ui-assets": "^2.9.11",
-    "@polkadot/ui-keyring": "^2.9.11",
-    "@polkadot/util": "^10.1.10",
-    "@polkadot/util-crypto": "^10.1.10",
+    "@polkadot/extension-dapp": "^0.44.6",
     "next": "12.3.1",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
   "devDependencies": {
-    "@types/node": "18.8.3",
+    "@types/node": "18.8.4",
     "@types/react": "18.0.21",
     "@types/react-dom": "18.0.6",
     "eslint": "8.25.0",
