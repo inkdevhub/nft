@@ -13,7 +13,6 @@ const Home: NextPage = () => {
 
   const flip = async () => {
     const address = '5EazoN6UvXJ2Zm8Kt1bcACS32fk2SmNLUcZ98njGx5uV2qd4'
-    const sendAddress = '5CRvXUKwLDzFM1u9reZ1quf14pNbsw27EZWCBxPMmpydBfYV'
     const provider = new WsProvider(WS_PROVIDER);
 		const api = new ApiPromise({ provider });
 
@@ -46,7 +45,7 @@ const Home: NextPage = () => {
         }
 
         // (We perform the send from an account, here using Alice's address)
-        const { gasRequired, storageDeposit, result, output } = await contract.query.get(
+        const { gasRequired, result, output } = await contract.query.get(
           alice.address,
           {
             gasLimit,
