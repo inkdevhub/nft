@@ -1,18 +1,51 @@
 import type { NextPage } from 'next'
+import { useState } from 'react';
 import { ApiPromise, Keyring, WsProvider } from '@polkadot/api'
 import { Abi, ContractPromise } from '@polkadot/api-contract'
 
 import Head from 'next/head'
-import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 import abiData from './abi'
 
 const WS_PROVIDER = 'ws://127.0.0.1:9944'
+const gasLimit = 18750000000;
+const storageDepositLimit = null;
 
 const Home: NextPage = () => {
+  const [address, setAddress] = useState('');
+  const [addressSubmitted, setAddressSubmitted] = useState(false);
+  const [value, setValue] = useState('');
+
+  const query = async (contract: ContractPromise, address: string) => {
+    // (We perform the send from an account, here using Alice's address)
+    const { gasRequired, result, output } = await contract.query.get(
+      address,
+      {
+        gasLimit,
+        storageDepositLimit,
+      }
+    );
+
+    // The actual result from RPC as `ContractExecResult`
+    console.log(result.toHuman());
+
+    // the gas consumed for contract execution
+    console.log(gasRequired.toHuman());
+
+    // check if the call was successful
+    if (result.isOk) {
+      // output the return value
+      console.log('Success', output?.toHuman());
+
+      if (output) {
+        setValue(output?.toString());
+      }
+    } else {
+      console.error('Error', result.asErr);
+    }
+  }
 
   const flip = async () => {
-    const address = '5EazoN6UvXJ2Zm8Kt1bcACS32fk2SmNLUcZ98njGx5uV2qd4'
     const provider = new WsProvider(WS_PROVIDER);
 		const api = new ApiPromise({ provider });
 
@@ -28,10 +61,6 @@ const Home: NextPage = () => {
 
     const contract = new ContractPromise(api, abi, address);
 
-    const value = 0; // only for payable messages, call will fail otherwise
-    const gasLimit = 18750000000;
-    const storageDepositLimit = null;
-
     // Send the transaction, like elsewhere this is a normal extrinsic
     // with the same rules as applied in the API (As with the read example,
     // additional params, if required can follow - here only one is needed)
@@ -43,30 +72,9 @@ const Home: NextPage = () => {
         } else if (res.status.isFinalized) {
           console.log('finalized');
         }
-
-        // (We perform the send from an account, here using Alice's address)
-        const { gasRequired, result, output } = await contract.query.get(
-          alice.address,
-          {
-            gasLimit,
-            storageDepositLimit,
-          }
-        );
-
-        // The actual result from RPC as `ContractExecResult`
-        console.log(result.toHuman());
-
-        // the gas consumed for contract execution
-        console.log(gasRequired.toHuman());
-
-        // check if the call was successful
-        if (result.isOk) {
-          // output the return value
-          console.log('Success', output?.toHuman());
-        } else {
-          console.error('Error', result.asErr);
-        }
       });
+
+    await query(contract, alice.address);
   }
 
 
@@ -79,11 +87,28 @@ const Home: NextPage = () => {
       </Head>
 
       <main className={styles.main}>
-        <h1 className={styles.title}>
-          Flipper Contract
-        </h1>
+        {addressSubmitted ? <>
+          <h3 className={styles.title}>
+            Flipper Contract
+          </h3>
 
-        <button onClick={flip}>Flip</button>
+          <button onClick={flip}>Flip</button>
+
+          <h4>{value}</h4>
+        </> :
+        <>
+          <h3 className={styles.title}>
+            Provide Contract Address
+          </h3>
+          <div className={styles.address}>
+            <input
+              type="text"
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+            />
+            <button onClick={e => setAddressSubmitted(true)}>Set</button>
+          </div>
+        </>}
       </main>
     </div>
   )
