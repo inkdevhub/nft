@@ -1,14 +1,10 @@
 use crate::traits::{
+    factory::FactoryError,
     pair::PairError,
-    factory::FactoryError
 };
 use ink_prelude::vec::Vec;
 use openbrush::{
-    contracts::{
-        traits::{
-            psp22::PSP22Error,
-        },
-    },
+    contracts::traits::psp22::PSP22Error,
     traits::{
         AccountId,
         Balance,
@@ -28,7 +24,7 @@ pub trait Router {
         &self,
         amount_a: Balance,
         reserve_a: Balance,
-        reserve_b: Balance
+        reserve_b: Balance,
     ) -> Result<Balance, RouterError>;
 
     #[ink(message)]
@@ -36,7 +32,7 @@ pub trait Router {
         &self,
         amount_in: Balance,
         reserve_in: Balance,
-        reserve_out: Balance
+        reserve_out: Balance,
     ) -> Result<Balance, RouterError>;
 
     #[ink(message)]
@@ -44,7 +40,7 @@ pub trait Router {
         &self,
         amount_out: Balance,
         reserve_in: Balance,
-        reserve_out: Balance
+        reserve_out: Balance,
     ) -> Result<Balance, RouterError>;
 
     #[ink(message)]
@@ -72,10 +68,10 @@ pub trait Router {
         amount_b_min: Balance,
         to: AccountId,
         deadline: u64,
-    ) ->  Result<(Balance, Balance, Balance), RouterError>;
+    ) -> Result<(Balance, Balance, Balance), RouterError>;
 
     #[ink(message)]
-    fn remove_lequidity(
+    fn remove_liquidity(
         &mut self,
         token_a: AccountId,
         token_b: AccountId,
@@ -110,35 +106,35 @@ pub trait Router {
         &self,
         amount_a: Balance,
         reserve_a: Balance,
-        reserve_b: Balance
+        reserve_b: Balance,
     ) -> Result<Balance, RouterError>;
 
     fn _get_amount_out(
         &self,
         amount_in: Balance,
         reserve_in: Balance,
-        reserve_out: Balance
+        reserve_out: Balance,
     ) -> Result<Balance, RouterError>;
 
     fn _get_amount_in(
         &self,
         amount_out: Balance,
         reserve_in: Balance,
-        reserve_out: Balance
+        reserve_out: Balance,
     ) -> Result<Balance, RouterError>;
 
     fn _get_amounts_out(
         &self,
         factory: AccountId,
         amount_in: Balance,
-        path: Vec<AccountId>,
+        path: &Vec<AccountId>,
     ) -> Result<Vec<Balance>, RouterError>;
 
     fn _get_amounts_in(
         &self,
         factory: AccountId,
         amount_out: Balance,
-        path: Vec<AccountId>,
+        path: &Vec<AccountId>,
     ) -> Result<Vec<Balance>, RouterError>;
 
     fn _add_liquidity(
@@ -163,7 +159,7 @@ pub trait Router {
         factory: AccountId,
         token_a: AccountId,
         token_b: AccountId,
-    ) ->  Result<AccountId, RouterError>;
+    ) -> Result<AccountId, RouterError>;
 
     fn _sort_tokens(
         &self,
@@ -175,7 +171,7 @@ pub trait Router {
         &self,
         factory: AccountId,
         token_a: AccountId,
-        token_b: AccountId
+        token_b: AccountId,
     ) -> Result<(Balance, Balance), RouterError>;
 }
 
@@ -190,6 +186,7 @@ pub enum RouterError {
     InsufficientAmount,
     InsufficientAAmount,
     InsufficientBAmount,
+    ExcessiveAAmount,
     InsufficientLiquidity,
     InsufficientOutputAmount,
     ExcessiveInputAmount,

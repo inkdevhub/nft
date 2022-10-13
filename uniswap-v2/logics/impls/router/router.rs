@@ -1,14 +1,17 @@
-use crate::{traits::factory::FactoryRef};
-use crate::traits::pair::PairRef;
+use crate::traits::{
+    factory::FactoryRef,
+    pair::PairRef,
+};
 pub use crate::{
     impls::router::*,
     traits::router::*,
 };
-use ink_prelude::{vec, vec::Vec};
+use ink_prelude::{
+    vec,
+    vec::Vec,
+};
 use openbrush::{
-    contracts::{
-        traits::psp22::PSP22Ref,
-    },
+    contracts::traits::psp22::PSP22Ref,
     traits::{
         AccountId,
         Balance,
@@ -18,8 +21,7 @@ use openbrush::{
 };
 use primitive_types::U256;
 
-impl<T: Storage<data::Data>> Router for T
-{
+impl<T: Storage<data::Data>> Router for T {
     default fn factory(&self) -> AccountId {
         self.data::<data::Data>().factory
     }
@@ -28,7 +30,7 @@ impl<T: Storage<data::Data>> Router for T
         &self,
         amount_a: Balance,
         reserve_a: Balance,
-        reserve_b: Balance
+        reserve_b: Balance,
     ) -> Result<Balance, RouterError> {
         self._quote(amount_a, reserve_a, reserve_b)
     }
@@ -46,7 +48,7 @@ impl<T: Storage<data::Data>> Router for T
         &self,
         amount_out: Balance,
         reserve_in: Balance,
-        reserve_out: Balance
+        reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
         self._get_amount_in(amount_out, reserve_in, reserve_out)
     }
@@ -57,7 +59,7 @@ impl<T: Storage<data::Data>> Router for T
         path: Vec<AccountId>,
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data::<data::Data>().factory;
-        self._get_amounts_out(factory, amount_in, path)
+        self._get_amounts_out(factory, amount_in, &path)
     }
 
     default fn get_amounts_in(
@@ -66,7 +68,7 @@ impl<T: Storage<data::Data>> Router for T
         path: Vec<AccountId>,
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data::<data::Data>().factory;
-        self._get_amounts_in(factory, amount_out, path)
+        self._get_amounts_in(factory, amount_out, &path)
     }
 
     default fn add_liquidity(
@@ -79,7 +81,7 @@ impl<T: Storage<data::Data>> Router for T
         amount_b_min: Balance,
         to: AccountId,
         deadline: u64,
-    ) ->  Result<(Balance, Balance, Balance), RouterError> {
+    ) -> Result<(Balance, Balance, Balance), RouterError> {
         if deadline <= Self::env().block_timestamp() {
             return Err(RouterError::Expired)
         }
@@ -112,13 +114,11 @@ impl<T: Storage<data::Data>> Router for T
         )?;
 
         let liquidity = PairRef::mint(&pair_contract, to)?;
-        
-        ink_env::debug_println!("Liquidity {:?}", liquidity);
 
         Ok((amount_a, amount_b, liquidity))
     }
 
-    default fn remove_lequidity(
+    default fn remove_liquidity(
         &mut self,
         token_a: AccountId,
         token_b: AccountId,
@@ -174,8 +174,8 @@ impl<T: Storage<data::Data>> Router for T
         }
 
         let factory = self.data::<data::Data>().factory;
-        let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_in, path.clone())?;
-        if amounts[amounts.len()-1] < amount_out_min {
+        let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_in, &path)?;
+        if amounts[amounts.len() - 1] < amount_out_min {
             return Err(RouterError::InsufficientOutputAmount)
         }
 
@@ -206,7 +206,7 @@ impl<T: Storage<data::Data>> Router for T
         }
 
         let factory = self.data::<data::Data>().factory;
-        let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_out, path.clone())?;
+        let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_out, &path)?;
         if amount_in_max < amounts[0] {
             return Err(RouterError::ExcessiveInputAmount)
         }
@@ -241,7 +241,8 @@ impl<T: Storage<data::Data>> Router for T
         let amount_b: Balance = casted_mul(amount_a, reserve_b)
             .checked_div(U256::from(reserve_a))
             .ok_or(RouterError::DivByZero1)?
-            .try_into().map_err(|_| RouterError::CastOverflow1)?;
+            .try_into()
+            .map_err(|_| RouterError::CastOverflow1)?;
 
         Ok(amount_b)
     }
@@ -272,7 +273,8 @@ impl<T: Storage<data::Data>> Router for T
         let amount_out: Balance = numerator
             .checked_div(denominator)
             .ok_or(RouterError::DivByZero2)?
-            .try_into().map_err(|_| RouterError::CastOverflow1)?;
+            .try_into()
+            .map_err(|_| RouterError::CastOverflow1)?;
 
         Ok(amount_out)
     }
@@ -281,26 +283,24 @@ impl<T: Storage<data::Data>> Router for T
         &self,
         factory: AccountId,
         amount_in: Balance,
-        path: Vec<AccountId>
+        path: &Vec<AccountId>,
     ) -> Result<Vec<Balance>, RouterError> {
         if path.len() < 2 {
             return Err(RouterError::InvalidPath)
         }
 
         let mut amounts: Vec<Balance> = vec![amount_in];
-        for i in 0..path.len()-1 {
+        for i in 0..path.len() - 1 {
             let (reserve_in, reserve_out) = self._get_reserves(
                 factory,
                 *path.get(i).ok_or(RouterError::IndexOutOfRange1)?,
-                *path.get(i+1).ok_or(RouterError::IndexOutOfRange2)?
+                *path.get(i + 1).ok_or(RouterError::IndexOutOfRange2)?,
             )?;
-            amounts.push(
-                self.get_amount_out(
-                    *amounts.get(i).ok_or(RouterError::IndexOutOfRange3)?,
-                    reserve_in,
-                    reserve_out
-                )?
-            );
+            amounts.push(self.get_amount_out(
+                *amounts.get(i).ok_or(RouterError::IndexOutOfRange3)?,
+                reserve_in,
+                reserve_out,
+            )?);
         }
 
         Ok(amounts)
@@ -310,26 +310,24 @@ impl<T: Storage<data::Data>> Router for T
         &self,
         factory: AccountId,
         amount_out: Balance,
-        path: Vec<AccountId>
+        path: &Vec<AccountId>,
     ) -> Result<Vec<Balance>, RouterError> {
         if path.len() < 2 {
             return Err(RouterError::InvalidPath)
         }
 
         let mut amounts: Vec<Balance> = vec![amount_out];
-        for i in 0..path.len()-1 {
+        for i in 0..path.len() - 1 {
             let (reserve_in, reserve_out) = self._get_reserves(
                 factory,
                 *path.get(i).ok_or(RouterError::IndexOutOfRange4)?,
-                *path.get(i+1).ok_or(RouterError::IndexOutOfRange5)?
+                *path.get(i + 1).ok_or(RouterError::IndexOutOfRange5)?,
             )?;
-            amounts.push(
-                self.get_amount_in(
-                    *amounts.get(i).ok_or(RouterError::IndexOutOfRange6)?,
-                    reserve_in,
-                    reserve_out
-                )?
-            );
+            amounts.push(self.get_amount_in(
+                *amounts.get(i).ok_or(RouterError::IndexOutOfRange6)?,
+                reserve_in,
+                reserve_out,
+            )?);
         }
 
         Ok(amounts)
@@ -339,7 +337,7 @@ impl<T: Storage<data::Data>> Router for T
         &self,
         amount_out: Balance,
         reserve_in: Balance,
-        reserve_out: Balance
+        reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
         if amount_out <= 0 {
             return Err(RouterError::InsufficientAmount)
@@ -367,7 +365,7 @@ impl<T: Storage<data::Data>> Router for T
             .ok_or(RouterError::AddOverFlow2)?
             .try_into().map_err(|_| RouterError::CastOverflow1)?;
 
-        Ok(amount_in)    
+        Ok(amount_in)
     }
 
     default fn _add_liquidity(
@@ -379,11 +377,13 @@ impl<T: Storage<data::Data>> Router for T
         amount_a_min: Balance,
         amount_b_min: Balance,
     ) -> Result<(Balance, Balance), RouterError> {
-        if FactoryRef::get_pair(&self.data::<data::Data>().factory, token_a, token_b).is_none() {
-            FactoryRef::create_pair(&self.data::<data::Data>().factory, token_a, token_b)?;
+        let factory = self.data::<data::Data>().factory;
+        if FactoryRef::get_pair(&factory, token_a, token_b).is_none() {
+            FactoryRef::create_pair(&factory, token_a, token_b)?;
         };
 
-        let (reserve_a, reserve_b) = self._get_reserves(self.data::<data::Data>().factory, token_a, token_b)?;
+        let (reserve_a, reserve_b) =
+            self._get_reserves(self.data::<data::Data>().factory, token_a, token_b)?;
         if reserve_a == 0 && reserve_b == 0 {
             return Ok((amount_a_desired, amount_b_desired))
         }
@@ -397,7 +397,9 @@ impl<T: Storage<data::Data>> Router for T
             Ok((amount_a_desired, amount_b_optimal))
         } else {
             let amount_a_optimal = self._quote(amount_b_desired, reserve_b, reserve_a)?;
-            assert!(amount_a_optimal <= amount_a_desired);
+            if amount_a_desired < amount_a_optimal {
+                return Err(RouterError::ExcessiveAAmount)
+            }
             if amount_a_optimal < amount_a_min {
                 return Err(RouterError::InsufficientAAmount)
             }
@@ -414,10 +416,10 @@ impl<T: Storage<data::Data>> Router for T
     ) -> Result<(), RouterError> {
         let factory = self.data::<data::Data>().factory;
 
-        for i in 0..path.len()-1 {
-            let (input, output) = (path[i], path[i+1]);
+        for i in 0..path.len() - 1 {
+            let (input, output) = (path[i], path[i + 1]);
             let (token_0, _) = self._sort_tokens(input, output)?;
-            let amount_out: Balance = amounts[i+1];
+            let amount_out: Balance = amounts[i + 1];
 
             let (amount_0_out, amount_1_out) = if input == token_0 {
                 (0, amount_out)
@@ -426,7 +428,7 @@ impl<T: Storage<data::Data>> Router for T
             };
 
             let to = if i < path.len() - 2 {
-                self._pair_for(factory, output, path[i+2])?
+                self._pair_for(factory, output, path[i + 2])?
             } else {
                 to
             };
@@ -435,13 +437,17 @@ impl<T: Storage<data::Data>> Router for T
                 &self._pair_for(factory, input, output)?,
                 amount_0_out,
                 amount_1_out,
-                to
+                to,
             )?;
         }
 
         Ok(())
     }
 
+    /// Original Uniswap Library pairFor function calculate pair contract address without making cross contract calls.
+    /// Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
+    ///
+    /// In this contract, use cross contract call to get pair contract address.
     default fn _pair_for(
         &self,
         factory: AccountId,
@@ -449,13 +455,8 @@ impl<T: Storage<data::Data>> Router for T
         token_b: AccountId,
     ) -> Result<AccountId, RouterError> {
         let (token_0, token_1) = self._sort_tokens(token_a, token_b)?;
-
-        // Original Uniswap Library pairFor function calculate pair contract address without making cross contract calls.
-        // Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
-
-        // In this contract, use cross contract call to get pair contract address.
-        let pair = FactoryRef::get_pair(&factory, token_0, token_1)
-            .ok_or(RouterError::PairNotFound)?;
+        let pair =
+            FactoryRef::get_pair(&factory, token_0, token_1).ok_or(RouterError::PairNotFound)?;
         Ok(pair)
     }
 
@@ -488,7 +489,6 @@ impl<T: Storage<data::Data>> Router for T
         token_b: AccountId,
     ) -> Result<(Balance, Balance), RouterError> {
         let (token_0, _) = self._sort_tokens(token_a, token_b)?;
-        // get pair contract address from factory
         let pair_contract = self._pair_for(factory, token_a, token_b)?;
         let (reserve_0, reserve_1, _) = PairRef::get_reserves(&pair_contract);
 

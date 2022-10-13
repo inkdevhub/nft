@@ -98,22 +98,4 @@ describe('ROUTER', () => {
             expect(BigInt(res.output.toJSON()["ok"]) / BigInt(10**Decimal)).to.equal(804n)
         }
     })
-
-    it('add_liquidity', async () => {
-        const { wallet, token0, token1, pair, router } = await setup()
-
-        // transfer token to account
-        const token0Amount = ONE.muln(100)
-        const token1Amount = ONE.muln(100)
-        await expect(token0.tx['psp22::transfer'](wallet.address, token0Amount, [])).to.eventually.be.fulfilled
-        await expect(token1.tx['psp22::transfer'](wallet.address, token1Amount, [])).to.eventually.be.fulfilled
-
-        let res = await token0.query["psp22::balanceOf"](wallet.address)
-        console.log(res.output.toHuman())
-
-        // approve router contract
-        // await expect(token0.tx['psp22::approve'](wallet))
-
-        // add liquidity
-    })
 })
