@@ -63,7 +63,7 @@ const Home: NextPage = () => {
 
     // Send the transaction, like elsewhere this is a normal extrinsic
     // with the same rules as applied in the API (As with the read example,
-    // additional params, if required can follow - here only one is needed)
+    // additional params, if required can follow)
     await contract.tx
       .flip({ storageDepositLimit, gasLimit })
       .signAndSend(alice, async (res) => {
