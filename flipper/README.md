@@ -14,20 +14,27 @@ This is a demo for Simple WASM contract. Contract name is Flipper. Flipper contr
 Install swanky cli https://github.com/AstarNetwork/swanky-cli
 - `$ npm install -g @astar-network/swanky-cli`
 
-contract folder was created by command: `swanky init PROJECTNAME`. You might need to recreate contract folder for your environment.
+##### Deploy flipper contract
+in the root workspace `Cargo.toml` uncomment the line `"flipper/flipper/contracts/*"`
 
-Start the local node
+in `./flipper` folder run `swanky init flipper` and chose `flipper` as template and as contract name. Chose `Y` when asking to download swanky node.
 
-- `cd contract`
+1. Start the local node
+
+- `cd flipper`
 - `swanky node start`
 
-Deploy the contract
+2. Build the contract
 
-- `cd contract`
-- `swanky contract deploy flipper --account alice -g 1000000000 -a 1`
+`swanky contract compile flipper`
+
+3. deploy the contract
+
+`swanky contract deploy flipper --account alice -g 100000000000 -a true`
 
 Note down the contract address.
 
+##### Run the UI
 Go to ui folder
 
 - `cd ../ui`

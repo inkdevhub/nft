@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "uniswap-v2/contracts/**",
+#    "flipper/flipper/contracts/*" <- uncomment this if you want to use flipper
 ]
 
 exclude = [
