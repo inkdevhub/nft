@@ -4,7 +4,10 @@ use crate::traits::{
 };
 pub use crate::{
     impls::router::*,
-    traits::router::*,
+    traits::{
+        router::*,
+        math::*,
+    },
 };
 use ink_prelude::{
     vec,
@@ -498,8 +501,4 @@ impl<T: Storage<data::Data>> Router for T {
             Ok((reserve_1, reserve_0))
         }
     }
-}
-
-fn casted_mul(a: u128, b: u128) -> U256 {
-    U256::from(a) * U256::from(b)
 }
