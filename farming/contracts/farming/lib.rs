@@ -3,7 +3,11 @@
 
 #[openbrush::contract]
 pub mod farming {
-    use farming::traits::farming::*;
+    use farming::traits::{
+        events::*,
+        farming::*,
+        getters::*,
+    };
     use ink_storage::traits::SpreadAllocate;
     use openbrush::traits::Storage;
 
@@ -15,6 +19,10 @@ pub mod farming {
     }
 
     impl Farming for FarmingContract {}
+
+    impl FarmingGetters for FarmingContract {}
+
+    impl FarmingEvents for FarmingContract {}
 
     impl FarmingContract {
         #[ink(constructor)]
