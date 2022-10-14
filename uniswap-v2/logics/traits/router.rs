@@ -205,12 +205,8 @@ pub enum RouterError {
     DivByZero2,
     DivByZero3,
     CastOverflow1,
-    IndexOutOfRange1,
-    IndexOutOfRange2,
-    IndexOutOfRange3,
-    IndexOutOfRange4,
-    IndexOutOfRange5,
-    IndexOutOfRange6,
+    CastOverflow2,
+    CastOverflow3,
 }
 
 impl From<PSP22Error> for RouterError {

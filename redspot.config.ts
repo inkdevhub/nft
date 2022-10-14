@@ -97,12 +97,8 @@ export default {
                         DivByZero2: null,
                         DivByZero3: null,
                         CastOverflow1: null,
-                        IndexOutOfRange1: null,
-                        IndexOutOfRange2: null,
-                        IndexOutOfRange3: null,
-                        IndexOutOfRange4: null,
-                        IndexOutOfRange5: null,
-                        IndexOutOfRange6: null,
+                        CastOverflow2: null,
+                        CastOverflow3: null,
                     }
                 },
                 PSP22Error: {

@@ -274,7 +274,7 @@ impl<T: Storage<data::Data>> Router for T {
             .checked_div(denominator)
             .ok_or(RouterError::DivByZero2)?
             .try_into()
-            .map_err(|_| RouterError::CastOverflow1)?;
+            .map_err(|_| RouterError::CastOverflow2)?;
 
         Ok(amount_out)
     }
@@ -293,11 +293,11 @@ impl<T: Storage<data::Data>> Router for T {
         for i in 0..path.len() - 1 {
             let (reserve_in, reserve_out) = self._get_reserves(
                 factory,
-                *path.get(i).ok_or(RouterError::IndexOutOfRange1)?,
-                *path.get(i + 1).ok_or(RouterError::IndexOutOfRange2)?,
+                path[i],
+                path[i + 1],
             )?;
             amounts.push(self.get_amount_out(
-                *amounts.get(i).ok_or(RouterError::IndexOutOfRange3)?,
+                amounts[i],
                 reserve_in,
                 reserve_out,
             )?);
@@ -320,11 +320,11 @@ impl<T: Storage<data::Data>> Router for T {
         for i in 0..path.len() - 1 {
             let (reserve_in, reserve_out) = self._get_reserves(
                 factory,
-                *path.get(i).ok_or(RouterError::IndexOutOfRange4)?,
-                *path.get(i + 1).ok_or(RouterError::IndexOutOfRange5)?,
+                path[i],
+                path[i + 1],
             )?;
             amounts.push(self.get_amount_in(
-                *amounts.get(i).ok_or(RouterError::IndexOutOfRange6)?,
+                amounts[i],
                 reserve_in,
                 reserve_out,
             )?);
@@ -363,7 +363,7 @@ impl<T: Storage<data::Data>> Router for T {
             .ok_or(RouterError::DivByZero3)?
             .checked_add(U256::from(1_000_000_000_000_000_000 as Balance)) // what if chain balance decimal is not 18? it starts not to work
             .ok_or(RouterError::AddOverFlow2)?
-            .try_into().map_err(|_| RouterError::CastOverflow1)?;
+            .try_into().map_err(|_| RouterError::CastOverflow3)?;
 
         Ok(amount_in)
     }
