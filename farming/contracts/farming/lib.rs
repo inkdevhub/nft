@@ -9,13 +9,21 @@ pub mod farming {
         getters::*,
     };
     use ink_storage::traits::SpreadAllocate;
-    use openbrush::traits::Storage;
+    use openbrush::{
+        contracts::{
+            ownable,
+            ownable::Internal,
+        },
+        traits::Storage,
+    };
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
     pub struct FarmingContract {
         #[storage_field]
         farming: Data,
+        #[storage_field]
+        ownable: ownable::Data,
     }
 
     impl Farming for FarmingContract {}
@@ -28,6 +36,8 @@ pub mod farming {
         #[ink(constructor)]
         pub fn new(arsw_token: AccountId) -> Self {
             ink_lang::codegen::initialize_contract(|instance: &mut Self| {
+                let caller = instance.env().caller();
+                instance._init_with_owner(caller);
                 instance.farming.arsw_token = arsw_token;
             })
         }
