@@ -1,10 +1,26 @@
 use ink_prelude::vec::Vec;
-use openbrush::{
-    storage::Mapping,
-    traits::AccountId,
+use ink_storage::{
+    traits::*,
+    Mapping,
+};
+use openbrush::traits::AccountId;
+use scale::{
+    Decode,
+    Encode,
 };
 
 pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
+
+#[derive(Encode, Decode, SpreadLayout, PackedLayout, SpreadAllocate, Default)]
+#[cfg_attr(
+    feature = "std",
+    derive(Debug, PartialEq, Eq, scale_info::TypeInfo, StorageLayout)
+)]
+pub struct Pool {
+    pub acc_arsw_per_share: u128,
+    pub last_reward_block: u32,
+    pub alloc_point: u64,
+}
 
 #[derive(Default, Debug)]
 #[openbrush::upgradeable_storage(STORAGE_KEY)]
@@ -13,16 +29,18 @@ pub struct Data {
     pub arsw_token: AccountId,
 
     /// Info of each MasterChef user.
-    /// u128 `amount` LP token amount the user has provided.
-    /// u128 `reward_debt` The amount of ARSW entitled to the user.
-    /// key is (u32 `pool_id`, AccountId `user_address` )
+    /// key (`pool_id`: u32, `user_address`: AccountId )
+    /// Value (`amount`: u128, `reward_debt`: u128)
+    /// `amount` LP token amount the user has provided.
+    /// `reward_debt` The amount of ARSW entitled to the user.
     pub user_info: Mapping<(u32, AccountId), (u128, i128)>,
 
     /// Info of each MasterChef pool.
-    /// u64 `alloc_point` The amount of allocation points assigned to the pool.
+    /// Key `pool_id`: u32
+    /// Value Pool (`acc_arsw_per_share`: u128, `last_reward_block`: u32, `alloc_point`: u64 )
+    /// `alloc_point` The amount of allocation points assigned to the pool.
     /// Also known as the amount of ARSW to distribute per block.
-    /// key is u32 `pool_id`
-    pub pool_info: Mapping<u32, (u128, u64, u64)>,
+    pub pool_info: Mapping<u32, Pool>,
     pub pool_info_length: u32,
 
     /// Address of the LP token for each MasterChef pool.
