@@ -93,7 +93,6 @@ pub mod w_native_token {
             self.env()
                 .transfer(caller, amount)
                 .map_err(|_| PSP22Error::Custom(String::from("Transfer failed")))?;
-
             Ok(())
         }
     }

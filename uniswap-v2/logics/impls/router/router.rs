@@ -5,8 +5,8 @@ use crate::traits::{
 pub use crate::{
     impls::router::*,
     traits::{
-        router::*,
         math::*,
+        router::*,
     },
 };
 use ink_prelude::{
@@ -294,16 +294,8 @@ impl<T: Storage<data::Data>> Router for T {
 
         let mut amounts: Vec<Balance> = vec![amount_in];
         for i in 0..path.len() - 1 {
-            let (reserve_in, reserve_out) = self._get_reserves(
-                factory,
-                path[i],
-                path[i + 1],
-            )?;
-            amounts.push(self.get_amount_out(
-                amounts[i],
-                reserve_in,
-                reserve_out,
-            )?);
+            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
+            amounts.push(self.get_amount_out(amounts[i], reserve_in, reserve_out)?);
         }
 
         Ok(amounts)
@@ -321,16 +313,8 @@ impl<T: Storage<data::Data>> Router for T {
 
         let mut amounts: Vec<Balance> = vec![amount_out];
         for i in 0..path.len() - 1 {
-            let (reserve_in, reserve_out) = self._get_reserves(
-                factory,
-                path[i],
-                path[i + 1],
-            )?;
-            amounts.push(self.get_amount_in(
-                amounts[i],
-                reserve_in,
-                reserve_out,
-            )?);
+            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
+            amounts.push(self.get_amount_in(amounts[i], reserve_in, reserve_out)?);
         }
 
         Ok(amounts)
