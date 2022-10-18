@@ -5,10 +5,14 @@ pub use crate::traits::{
     },
     getters::FarmingGetters,
 };
+use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::{
         ownable::*,
-        traits::psp22::PSP22Ref,
+        traits::psp22::{
+            PSP22Error,
+            PSP22Ref,
+        },
     },
     modifiers,
     traits::{
@@ -36,6 +40,82 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters {
     ) -> Result<(), FarmingError> {
         self._check_pool_duplicate(lp_token)?;
         self._update_all_pools()?;
+        self.data::<Data>().pool_info_length += 1;
+        self.data::<Data>().lp_tokens.push(lp_token);
+        Ok(())
+    }
+
+    #[ink(message)]
+    fn pending_arsw(&self, _pool_id: u32, _user: AccountId) -> Result<Balance, FarmingError> {
+        Ok(1_000_000_000_000_000_000)
+    }
+
+    #[ink(message)]
+    fn deposit(
+        &mut self,
+        pool_id: u32,
+        amount: Balance,
+        to: AccountId,
+    ) -> Result<(), FarmingError> {
+        let (prev_amount, prev_reward_debt) = self
+            .get_user_info(pool_id, to)
+            .ok_or(FarmingError::UserNotFound)?;
+        // TODO: Fix reward_debt
+        self.data::<Data>().user_info.insert(
+            &(pool_id, to),
+            &(
+                prev_amount
+                    .checked_add(amount)
+                    .ok_or(FarmingError::AddOverflow1)?,
+                prev_reward_debt,
+            ),
+        );
+        let lp_token = self
+            .get_lp_token(pool_id)
+            .ok_or(FarmingError::PoolNotFound2)?;
+        PSP22Ref::transfer_from(
+            &lp_token,
+            Self::env().caller(),
+            Self::env().account_id(),
+            amount,
+            Vec::new(),
+        )?;
+        Ok(())
+    }
+
+    #[ink(message)]
+    fn withdraw(
+        &mut self,
+        pool_id: u32,
+        amount: Balance,
+        to: AccountId,
+    ) -> Result<(), FarmingError> {
+        if amount == 0 {
+            return Err(FarmingError::ZeroWithdrawal)
+        }
+        let caller = Self::env().caller();
+        let (prev_amount, prev_reward_debt) = self
+            .get_user_info(pool_id, caller)
+            .ok_or(FarmingError::UserNotFound)?;
+        // TODO: Fix reward_debt
+        self.data::<Data>().user_info.insert(
+            &(pool_id, caller),
+            &(
+                prev_amount
+                    .checked_sub(amount)
+                    .ok_or(FarmingError::SubUnderflow2)?,
+                prev_reward_debt,
+            ),
+        );
+        let lp_token = self
+            .get_lp_token(pool_id)
+            .ok_or(FarmingError::PoolNotFound3)?;
+        PSP22Ref::transfer(&lp_token, to, amount, Vec::new())?;
+        Ok(())
+    }
+
+    #[ink(message)]
+    fn harvest(&mut self, _pool_id: u32, _to: AccountId) -> Result<(), FarmingError> {
         Ok(())
     }
 
@@ -58,7 +138,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters {
     fn _update_pool(&mut self, pool_id: u32) -> Result<(), FarmingError> {
         let pool = self
             .get_pool_infos(pool_id)
-            .ok_or(FarmingError::PoolNotFound)?;
+            .ok_or(FarmingError::PoolNotFound1)?;
         let current_block = Self::env().block_number();
         if current_block > pool.last_reward_block {
             let lp_token = self
@@ -104,16 +184,29 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters {
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FarmingError {
     OwnableError(OwnableError),
+    PSP22Error(PSP22Error),
     DuplicateLPToken,
-    PoolNotFound,
+    PoolNotFound1,
+    PoolNotFound2,
+    PoolNotFound3,
+    UserNotFound,
+    ZeroWithdrawal,
     LpTokenNotFound,
     LpSupplyIsZero,
     BlockNumberLowerThanOriginBlock,
     SubUnderflow1,
+    SubUnderflow2,
+    AddOverflow1,
 }
 
 impl From<OwnableError> for FarmingError {
     fn from(error: OwnableError) -> Self {
         FarmingError::OwnableError(error)
+    }
+}
+
+impl From<PSP22Error> for FarmingError {
+    fn from(error: PSP22Error) -> Self {
+        FarmingError::PSP22Error(error)
     }
 }
