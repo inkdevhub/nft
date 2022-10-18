@@ -77,9 +77,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         amount: Balance,
         to: AccountId,
     ) -> Result<(), FarmingError> {
-        let (prev_amount, prev_reward_debt) = self
-            .get_user_info(pool_id, to)
-            .ok_or(FarmingError::UserNotFound)?;
+        let (prev_amount, prev_reward_debt) = self.get_user_info(pool_id, to).unwrap_or((0, 0));
         // TODO: Fix reward_debt
         self.data::<Data>().user_info.insert(
             &(pool_id, to),
