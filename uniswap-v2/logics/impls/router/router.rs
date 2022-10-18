@@ -5,8 +5,8 @@ use crate::traits::{
 pub use crate::{
     impls::router::*,
     traits::{
-        router::*,
         math::*,
+        router::*,
     },
 };
 use ink_prelude::{
@@ -23,6 +23,9 @@ use openbrush::{
     },
 };
 use primitive_types::U256;
+
+// Chain decimals is 18
+pub const ONE: u128 = 1_000_000_000_000_000_000;
 
 impl<T: Storage<data::Data>> Router for T {
     default fn factory(&self) -> AccountId {
@@ -294,16 +297,8 @@ impl<T: Storage<data::Data>> Router for T {
 
         let mut amounts: Vec<Balance> = vec![amount_in];
         for i in 0..path.len() - 1 {
-            let (reserve_in, reserve_out) = self._get_reserves(
-                factory,
-                path[i],
-                path[i + 1],
-            )?;
-            amounts.push(self.get_amount_out(
-                amounts[i],
-                reserve_in,
-                reserve_out,
-            )?);
+            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
+            amounts.push(self.get_amount_out(amounts[i], reserve_in, reserve_out)?);
         }
 
         Ok(amounts)
@@ -321,16 +316,8 @@ impl<T: Storage<data::Data>> Router for T {
 
         let mut amounts: Vec<Balance> = vec![amount_out];
         for i in 0..path.len() - 1 {
-            let (reserve_in, reserve_out) = self._get_reserves(
-                factory,
-                path[i],
-                path[i + 1],
-            )?;
-            amounts.push(self.get_amount_in(
-                amounts[i],
-                reserve_in,
-                reserve_out,
-            )?);
+            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
+            amounts.push(self.get_amount_in(amounts[i], reserve_in, reserve_out)?);
         }
 
         Ok(amounts)
@@ -364,9 +351,10 @@ impl<T: Storage<data::Data>> Router for T {
         let amount_in: Balance = numerator
             .checked_div(denominator)
             .ok_or(RouterError::DivByZero3)?
-            .checked_add(U256::from(1_000_000_000_000_000_000 as Balance)) // what if chain balance decimal is not 18? it starts not to work
+            .checked_add(U256::from(ONE as Balance))
             .ok_or(RouterError::AddOverFlow2)?
-            .try_into().map_err(|_| RouterError::CastOverflow3)?;
+            .try_into()
+            .map_err(|_| RouterError::CastOverflow3)?;
 
         Ok(amount_in)
     }
