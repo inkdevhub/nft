@@ -3,6 +3,7 @@ pub use crate::traits::{
         Data,
         Pool,
     },
+    events::FarmingEvents,
     getters::FarmingGetters,
 };
 use ink_prelude::vec::Vec;
@@ -29,19 +30,38 @@ pub const MAX_PERIOD: u8 = 23u8;
 pub const FIRST_PERIOD_REWERD_SUPPLY: Balance = 151629858171523000000u128;
 
 #[openbrush::trait_definition]
-pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters {
+pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + FarmingEvents {
     #[ink(message)]
     #[modifiers(only_owner)]
     fn add(
         &mut self,
-        alloc_point: u128,
+        alloc_point: u32,
         lp_token: AccountId,
-        rewarder: AccountId,
+        rewarder: Option<AccountId>,
     ) -> Result<(), FarmingError> {
         self._check_pool_duplicate(lp_token)?;
         self._update_all_pools()?;
-        self.data::<Data>().pool_info_length += 1;
+        self.data::<Data>().total_alloc_point = self
+            .data::<Data>()
+            .total_alloc_point
+            .checked_add(alloc_point)
+            .ok_or(FarmingError::AddOverflow2)?;
         self.data::<Data>().lp_tokens.push(lp_token);
+        self.data::<Data>().rewarders.push(rewarder);
+        let pool_length = self.pool_length();
+
+        self.data::<Data>().pool_info.insert(
+            &pool_length,
+            &Pool {
+                acc_arsw_per_share: 0,
+                last_reward_block: Self::env().block_number(),
+                alloc_point,
+            },
+        );
+        self.data::<Data>().pool_info_length = pool_length
+            .checked_add(1)
+            .ok_or(FarmingError::AddOverflow2)?;
+        self._emit_log_pool_addition_event(pool_length, alloc_point, lp_token, rewarder);
         Ok(())
     }
 
@@ -197,6 +217,8 @@ pub enum FarmingError {
     SubUnderflow1,
     SubUnderflow2,
     AddOverflow1,
+    AddOverflow2,
+    AddOverflow3,
 }
 
 impl From<OwnableError> for FarmingError {

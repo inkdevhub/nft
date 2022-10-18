@@ -44,9 +44,9 @@ pub trait FarmingEvents {
     fn _emit_log_pool_addition_event(
         &self,
         _pool_id: u32,
-        _alloc_point: u128,
+        _alloc_point: u32,
         _lp_token: AccountId,
-        _rewarder: AccountId,
+        _rewarder: Option<AccountId>,
     ) {
     }
 

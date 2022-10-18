@@ -19,7 +19,7 @@ pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
 pub struct Pool {
     pub acc_arsw_per_share: u128,
     pub last_reward_block: u32,
-    pub alloc_point: u64,
+    pub alloc_point: u32,
 }
 
 #[derive(Default, Debug)]
@@ -47,7 +47,7 @@ pub struct Data {
     pub lp_tokens: Vec<AccountId>,
 
     /// Address of each `rewarder` contract in MasterChef.
-    pub rewarders: Vec<AccountId>,
+    pub rewarders: Vec<Option<AccountId>>,
 
     /// Total allocation points. Must be the sum of all allocation points in all pools.
     pub total_alloc_point: u32,
