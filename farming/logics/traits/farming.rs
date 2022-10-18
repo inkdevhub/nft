@@ -47,9 +47,12 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .checked_add(alloc_point)
             .ok_or(FarmingError::AddOverflow2)?;
         self.data::<Data>().lp_tokens.push(lp_token);
-        self.data::<Data>().rewarders.push(rewarder);
         let pool_length = self.pool_length();
-
+        if let Some(rewarder_address) = rewarder {
+            self.data::<Data>()
+                .rewarders
+                .insert(&pool_length, &rewarder_address);
+        }
         self.data::<Data>().pool_info.insert(
             &pool_length,
             &Pool {

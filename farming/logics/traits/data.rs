@@ -47,7 +47,7 @@ pub struct Data {
     pub lp_tokens: Vec<AccountId>,
 
     /// Address of each `rewarder` contract in MasterChef.
-    pub rewarders: Vec<Option<AccountId>>,
+    pub rewarders: Mapping<u32, AccountId>,
 
     /// Total allocation points. Must be the sum of all allocation points in all pools.
     pub total_alloc_point: u32,
