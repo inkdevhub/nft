@@ -7,7 +7,7 @@ export default {
     defaultNetwork: 'development',
     contract: {
         ink: {
-            toolchain: 'nightly-2022-07-24',
+            toolchain: 'nightly-2022-08-15',
             sources: ['uniswap-v2/contracts/**']
         }
     },
