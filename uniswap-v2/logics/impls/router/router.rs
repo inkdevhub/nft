@@ -15,6 +15,8 @@ use ink_prelude::{
 };
 use openbrush::{
     contracts::traits::psp22::PSP22Ref,
+    modifier_definition,
+    modifiers,
     traits::{
         AccountId,
         Balance,
