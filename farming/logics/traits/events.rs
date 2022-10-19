@@ -53,8 +53,8 @@ pub trait FarmingEvents {
     fn _emit_log_set_pool_event(
         &self,
         _pool_id: u32,
-        _alloc_point: u128,
-        _rewardes: AccountId,
+        _alloc_point: u32,
+        _rewarder: AccountId,
         _overwrite: bool,
     ) {
     }
