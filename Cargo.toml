@@ -1,8 +1,10 @@
 [workspace]
 members = [
     "uniswap-v2/contracts/**",
+    "farming/contracts/**",
 ]
 
 exclude = [
-    "uniswap-v2/logics"
+    "uniswap-v2/logics",
+    "farming/logics"
 ]
