@@ -26,7 +26,7 @@ use openbrush::{
 pub const ACC_ARSW_PRECISION: u8 = 12;
 pub const ARTHSWAP_ORIGIN_BLOCK: u32 = 1u32;
 pub const BLOCK_PER_PERIOD: u32 = 215000u32;
-pub const MAX_PERIOD: u8 = 23u8;
+pub const MAX_PERIOD: u32 = 23u32;
 pub const FIRST_PERIOD_REWERD_SUPPLY: Balance = 151629858171523000000u128;
 
 #[openbrush::trait_definition]
@@ -69,7 +69,12 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     }
 
     #[ink(message)]
-    fn pending_arsw(&self, _pool_id: u32, _user: AccountId) -> Result<Balance, FarmingError> {
+    fn pending_arsw(&mut self, pool_id: u32, user: AccountId) -> Result<Balance, FarmingError> {
+        let mut pool = self
+            .get_pool_infos(pool_id)
+            .ok_or(FarmingError::PoolNotFound4)?;
+        let mut user = self.data::<Data>().user_info.get(&(pool_id, user));
+
         Ok(1_000_000_000_000_000_000)
     }
 
@@ -157,7 +162,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     }
 
     fn _update_pool(&mut self, pool_id: u32) -> Result<(), FarmingError> {
-        let pool = self
+        let mut pool = self
             .get_pool_infos(pool_id)
             .ok_or(FarmingError::PoolNotFound1)?;
         let current_block = Self::env().block_number();
@@ -168,15 +173,28 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             let lp_supply = PSP22Ref::balance_of(&lp_token, Self::env().account_id());
             if lp_supply > 0 {
                 let additional_acc_arsw_per_share =
-                    self._calculate_additional_acc_arsw_per_share(pool, current_block, lp_supply)?;
+                    self._calculate_additional_acc_arsw_per_share(&pool, current_block, lp_supply)?;
+                pool.acc_arsw_per_share = pool
+                    .acc_arsw_per_share
+                    .checked_add(additional_acc_arsw_per_share)
+                    .ok_or(FarmingError::AddOverflow8)?;
             }
+            pool.last_reward_block = current_block;
+            self.data::<Data>().pool_info.insert(pool_id, &pool);
+
+            self._emit_log_update_pool_event(
+                pool_id,
+                pool.last_reward_block,
+                lp_supply,
+                pool.acc_arsw_per_share,
+            );
         }
         Ok(())
     }
 
     fn _calculate_additional_acc_arsw_per_share(
         &mut self,
-        pool_info: Pool,
+        pool_info: &Pool,
         current_block: u32,
         lp_supply: Balance,
     ) -> Result<Balance, FarmingError> {
@@ -185,7 +203,60 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         }
         let last_reward_block_period = self._get_period(pool_info.last_reward_block)?;
         let current_period = self._get_period(Self::env().block_number())?;
-        Ok(10u128)
+
+        let mut arsw_reward: Balance = 0;
+        let mut last_block = pool_info.last_reward_block;
+        let mut period = last_reward_block_period;
+        while period <= current_period {
+            if period > MAX_PERIOD {
+                break
+            }
+            let total_alloc_point: u32 = self.data::<Data>().total_alloc_point;
+            if current_block <= self._period_max(period)? {
+                arsw_reward = arsw_reward
+                    .checked_add(
+                        (current_block as u128)
+                            .checked_sub(last_block as u128)
+                            .ok_or(FarmingError::SubUnderflow4)?
+                            .checked_mul(self._arsw_per_block(period)?)
+                            .ok_or(FarmingError::MulOverflow3)?
+                            .checked_mul(pool_info.alloc_point as u128)
+                            .ok_or(FarmingError::MulOverflow4)?
+                            .into(),
+                    )
+                    .ok_or(FarmingError::AddOverflow6)?
+                    .checked_div(total_alloc_point.into())
+                    .ok_or(FarmingError::DivByZero1)?
+            } else {
+                arsw_reward = arsw_reward
+                    .checked_add(
+                        (self._period_max(period)? as u128)
+                            .checked_sub(last_block.into())
+                            .ok_or(FarmingError::SubUnderflow5)?
+                            .checked_mul(self._arsw_per_block(period)? as u128)
+                            .ok_or(FarmingError::MulOverflow5)?
+                            .checked_mul(
+                                pool_info
+                                    .alloc_point
+                                    .checked_div(total_alloc_point)
+                                    .ok_or(FarmingError::DivByZero2)?
+                                    .into(),
+                            )
+                            .ok_or(FarmingError::MulOverflow6)?
+                            .into(),
+                    )
+                    .ok_or(FarmingError::AddOverflow7)?;
+                last_block = self._period_max(period)?;
+            }
+
+            period += 1;
+        }
+
+        Ok(arsw_reward
+            .checked_mul(ACC_ARSW_PRECISION.into())
+            .ok_or(FarmingError::MulOverflow8)?
+            .checked_div(lp_supply)
+            .ok_or(FarmingError::DivByZero3)?)
     }
 
     fn _get_period(&self, block_number: u32) -> Result<u32, FarmingError> {
@@ -199,6 +270,34 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .ok_or(FarmingError::SubUnderflow1)?
             / BLOCK_PER_PERIOD)
     }
+
+    fn _period_max(&self, period: u32) -> Result<u32, FarmingError> {
+        Ok(ARTHSWAP_ORIGIN_BLOCK
+            .checked_add(
+                BLOCK_PER_PERIOD
+                    .checked_mul(period.checked_add(1).ok_or(FarmingError::AddOverflow4)?)
+                    .ok_or(FarmingError::MulOverflow1)?,
+            )
+            .ok_or(FarmingError::AddOverflow5)?
+            .checked_sub(1)
+            .ok_or(FarmingError::SubUnderflow3)?)
+    }
+
+    fn _arsw_per_block(&self, period: u32) -> Result<Balance, FarmingError> {
+        if period > MAX_PERIOD {
+            return Ok(0)
+        }
+        Ok(FIRST_PERIOD_REWERD_SUPPLY
+            .checked_mul(
+                9u128
+                    .checked_pow(period)
+                    .ok_or(FarmingError::PowOverflow1)?
+                    / 10u128
+                        .checked_pow(period)
+                        .ok_or(FarmingError::PowOverflow2)?,
+            )
+            .ok_or(FarmingError::MulOverflow2)?)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -210,6 +309,7 @@ pub enum FarmingError {
     PoolNotFound1,
     PoolNotFound2,
     PoolNotFound3,
+    PoolNotFound4,
     UserNotFound,
     ZeroWithdrawal,
     LpTokenNotFound,
@@ -217,9 +317,30 @@ pub enum FarmingError {
     BlockNumberLowerThanOriginBlock,
     SubUnderflow1,
     SubUnderflow2,
+    SubUnderflow3,
+    SubUnderflow4,
+    SubUnderflow5,
     AddOverflow1,
     AddOverflow2,
     AddOverflow3,
+    AddOverflow4,
+    AddOverflow5,
+    AddOverflow6,
+    AddOverflow7,
+    AddOverflow8,
+    MulOverflow1,
+    MulOverflow2,
+    MulOverflow3,
+    MulOverflow4,
+    MulOverflow5,
+    MulOverflow6,
+    MulOverflow7,
+    MulOverflow8,
+    PowOverflow1,
+    PowOverflow2,
+    DivByZero1,
+    DivByZero2,
+    DivByZero3,
 }
 
 impl From<OwnableError> for FarmingError {
