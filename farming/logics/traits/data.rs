@@ -12,10 +12,7 @@ use scale::{
 pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
 
 #[derive(Encode, Decode, SpreadLayout, PackedLayout, SpreadAllocate, Default)]
-#[cfg_attr(
-    feature = "std",
-    derive(Debug, PartialEq, Eq, scale_info::TypeInfo, StorageLayout)
-)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub struct Pool {
     pub acc_arsw_per_share: u128,
     pub last_reward_block: u32,
