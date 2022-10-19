@@ -234,7 +234,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     }
 
     fn _update_pool(&mut self, pool_id: u32) -> Result<(), FarmingError> {
-        let mut pool = self
+        let pool = self
             .get_pool_infos(pool_id)
             .ok_or(FarmingError::PoolNotFound1)?;
         let current_block = Self::env().block_number();
@@ -339,7 +339,6 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .ok_or(FarmingError::SubUnderflow1)?
             / BLOCK_PER_PERIOD)
     }
-
     fn _period_max(&self, period: u32) -> Result<u32, FarmingError> {
         Ok(ARTHSWAP_ORIGIN_BLOCK
             .checked_add(

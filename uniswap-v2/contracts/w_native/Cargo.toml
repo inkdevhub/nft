@@ -1,5 +1,5 @@
 [package]
-name = "farming_contract"
+name = "w_native_token"
 version = "0.1.0"
 authors = ["Stake Technologies <devops@stake.co.jp>"]
 edition = "2021"
@@ -11,15 +11,15 @@ ink_env = { version = "~3.3.0", default-features = false }
 ink_storage = { version = "~3.3.0", default-features = false }
 ink_lang = { version = "~3.3.0", default-features = false }
 ink_prelude = { version = "~3.3.0", default-features = false }
+ink_engine = { version = "~3.3.0", default-features = false, optional = true }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
-openbrush = { version = "2.2.0", default-features = false, features = ["ownable"] }
-farming = { path = "../../logics", default-features = false }
+openbrush = { version = "2.2.0", default-features = false, features = ["psp22"] }
 
 [lib]
-name = "farming_contract"
+name = "w_native_token"
 path = "lib.rs"
 crate-type = ["cdylib"]
 
@@ -35,11 +35,8 @@ std = [
     "scale/std",
     "scale-info",
     "scale-info/std",
-    "openbrush/std",
-    "farming/std"
-]
-[profile.dev]
-overflow-checks = false
 
-[profile.release]
-overflow-checks = false
+    # Brush dependency
+    "openbrush/std",
+]
+ink-as-dependency = []

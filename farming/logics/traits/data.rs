@@ -40,7 +40,9 @@ pub struct Data {
     /// Value (`amount`: u128, `reward_debt`: u128)
     /// `amount` LP token amount the user has provided.
     /// `reward_debt` The amount of ARSW entitled to the user.
+
     pub user_info: Mapping<(u32, AccountId), UserInfo>,
+
 
     /// Info of each MasterChef pool.
     /// Key `pool_id`: u32
