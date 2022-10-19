@@ -29,4 +29,9 @@ pub trait FarmingGetters: Storage<Data> {
     fn get_lp_token(&self, pool_id: u32) -> Option<AccountId> {
         self.data::<Data>().lp_tokens.get(pool_id as usize).copied()
     }
+
+    #[ink(message)]
+    fn get_rewarder(&self, pool_id: u32) -> Option<AccountId> {
+        self.data::<Data>().rewarders.get(pool_id)
+    }
 }

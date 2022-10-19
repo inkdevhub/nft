@@ -73,11 +73,50 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     }
 
     #[ink(message)]
+    #[modifiers(only_owner)]
+    fn set(
+        &mut self,
+        pool_id: u32,
+        alloc_point: u32,
+        rewarder: AccountId,
+        overwrite: bool,
+    ) -> Result<(), FarmingError> {
+        self._update_all_pools()?;
+        let pool_info = self
+            .get_pool_infos(pool_id)
+            .ok_or(FarmingError::PoolNotFound5)?;
+        self.data::<Data>().total_alloc_point = self
+            .data::<Data>()
+            .total_alloc_point
+            .checked_sub(pool_info.alloc_point)
+            .ok_or(FarmingError::SubUnderflow7)?
+            .checked_add(alloc_point)
+            .ok_or(FarmingError::AddOverflow9)?;
+
+        self.data::<Data>().pool_info.insert(
+            &pool_id,
+            &Pool {
+                alloc_point,
+                ..pool_info
+            },
+        );
+        let mut rewarder = rewarder;
+        if overwrite {
+            self.data::<Data>().rewarders.insert(&pool_id, &rewarder);
+            rewarder = self
+                .get_rewarder(pool_id)
+                .ok_or(FarmingError::RewarderNotFound)?;
+        }
+        self._emit_log_set_pool_event(pool_id, alloc_point, rewarder, overwrite);
+        Ok(())
+    }
+
+    #[ink(message)]
     fn pending_arsw(&mut self, pool_id: u32, user: AccountId) -> Result<Balance, FarmingError> {
-        let mut pool = self
+        let pool = self
             .get_pool_infos(pool_id)
             .ok_or(FarmingError::PoolNotFound4)?;
-        let mut user_info = self
+        let user_info = self
             .get_user_info(pool_id, user)
             .ok_or(FarmingError::UserNotFound)?;
         let mut acc_arsw_per_share = pool.acc_arsw_per_share;
@@ -93,14 +132,20 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                 .ok_or(FarmingError::AddOverflow8)?;
         }
 
-        let pending = (user_info
-            .amount
-            .checked_mul(acc_arsw_per_share)
-            .ok_or(FarmingError::MulOverflow9)?
-            / ACC_ARSW_PRECISION)
-            .checked_sub(user_info.reward_debt)
-            .ok_or(FarmingError::SubUnderflow6)?;
-        Ok(pending)
+        let pending = <u128 as TryInto<i128>>::try_into(
+            user_info
+                .amount
+                .checked_mul(acc_arsw_per_share)
+                .ok_or(FarmingError::MulOverflow9)?
+                / ACC_ARSW_PRECISION as u128,
+        )
+        .map_err(|_| FarmingError::CastToi128Error)?
+        .checked_sub(user_info.reward_debt)
+        .ok_or(FarmingError::SubUnderflow6)?;
+        Ok(
+            <i128 as TryInto<u128>>::try_into(pending)
+                .map_err(|_| FarmingError::CastTou128Error)?,
+        )
     }
 
     #[ink(message)]
@@ -341,17 +386,22 @@ pub enum FarmingError {
     PoolNotFound2,
     PoolNotFound3,
     PoolNotFound4,
+    PoolNotFound5,
     UserNotFound,
     ZeroWithdrawal,
     LpTokenNotFound,
     LpSupplyIsZero,
     BlockNumberLowerThanOriginBlock,
+    CastToi128Error,
+    CastTou128Error,
+    RewarderNotFound,
     SubUnderflow1,
     SubUnderflow2,
     SubUnderflow3,
     SubUnderflow4,
     SubUnderflow5,
     SubUnderflow6,
+    SubUnderflow7,
     AddOverflow1,
     AddOverflow2,
     AddOverflow3,
@@ -360,6 +410,7 @@ pub enum FarmingError {
     AddOverflow6,
     AddOverflow7,
     AddOverflow8,
+    AddOverflow9,
     MulOverflow1,
     MulOverflow2,
     MulOverflow3,
