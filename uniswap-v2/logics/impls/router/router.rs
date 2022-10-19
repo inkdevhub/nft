@@ -77,6 +77,7 @@ impl<T: Storage<data::Data>> Router for T {
         self._get_amounts_in(factory, amount_out, &path)
     }
 
+    #[modifiers(ensure(deadline))]
     default fn add_liquidity(
         &mut self,
         token_a: AccountId,
@@ -88,10 +89,6 @@ impl<T: Storage<data::Data>> Router for T {
         to: AccountId,
         deadline: u64,
     ) -> Result<(Balance, Balance, Balance), RouterError> {
-        if deadline <= Self::env().block_timestamp() {
-            return Err(RouterError::Expired)
-        }
-
         let (amount_a, amount_b) = self._add_liquidity(
             token_a,
             token_b,
@@ -124,6 +121,7 @@ impl<T: Storage<data::Data>> Router for T {
         Ok((amount_a, amount_b, liquidity))
     }
 
+    #[modifiers(ensure(deadline))]
     default fn remove_liquidity(
         &mut self,
         token_a: AccountId,
@@ -134,10 +132,6 @@ impl<T: Storage<data::Data>> Router for T {
         to: AccountId,
         deadline: u64,
     ) -> Result<(Balance, Balance), RouterError> {
-        if deadline <= Self::env().block_timestamp() {
-            return Err(RouterError::Expired)
-        }
-
         let factory = self.data::<data::Data>().factory;
         let pair_contract = self._pair_for(factory, token_a, token_b)?;
 
@@ -167,6 +161,7 @@ impl<T: Storage<data::Data>> Router for T {
         Ok((amount_a, amount_b))
     }
 
+    #[modifiers(ensure(deadline))]
     default fn swap_exact_tokens_for_tokens(
         &mut self,
         amount_in: Balance,
@@ -175,10 +170,6 @@ impl<T: Storage<data::Data>> Router for T {
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
-        if deadline <= Self::env().block_timestamp() {
-            return Err(RouterError::Expired)
-        }
-
         let factory = self.data::<data::Data>().factory;
         let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_in, &path)?;
         if amounts[amounts.len() - 1] < amount_out_min {
@@ -199,6 +190,7 @@ impl<T: Storage<data::Data>> Router for T {
         Ok(amounts)
     }
 
+    #[modifiers(ensure(deadline))]
     default fn swap_tokens_for_exact_tokens(
         &mut self,
         amount_out: Balance,
@@ -207,10 +199,6 @@ impl<T: Storage<data::Data>> Router for T {
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
-        if deadline <= Self::env().block_timestamp() {
-            return Err(RouterError::Expired)
-        }
-
         let factory = self.data::<data::Data>().factory;
         let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_out, &path)?;
         if amount_in_max < amounts[0] {
@@ -489,4 +477,17 @@ impl<T: Storage<data::Data>> Router for T {
             Ok((reserve_1, reserve_0))
         }
     }
+}
+
+#[modifier_definition]
+pub fn ensure<T, F, R, E>(instance: &mut T, body: F, deadline: u64) -> Result<R, E>
+where
+    T: Storage<data::Data>,
+    F: FnOnce(&mut T) -> Result<R, E>,
+    E: From<RouterError>,
+{
+    if deadline <= T::env().block_timestamp() {
+        return Err(From::from(RouterError::Expired))
+    }
+    body(instance)
 }
