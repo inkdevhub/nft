@@ -18,6 +18,11 @@ pub trait FarmingGetters: Storage<Data> {
     }
 
     #[ink(message)]
+    fn get_user_info(&self, pool_id: u32, user: AccountId) -> Option<(u128, i128)> {
+        self.data::<Data>().user_info.get(&(pool_id, user))
+    }
+
+    #[ink(message)]
     fn get_lp_token(&self, pool_id: u32) -> Option<AccountId> {
         self.data::<Data>().lp_tokens.get(pool_id as usize).copied()
     }
