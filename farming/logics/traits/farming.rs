@@ -1,3 +1,4 @@
+use crate::traits::data::UserInfo;
 pub use crate::traits::{
     data::{
         Data,
@@ -41,6 +42,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     ) -> Result<(), FarmingError> {
         self._check_pool_duplicate(lp_token)?;
         self._update_all_pools()?;
+
         self.data::<Data>().total_alloc_point = self
             .data::<Data>()
             .total_alloc_point
@@ -48,6 +50,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .ok_or(FarmingError::AddOverflow2)?;
         self.data::<Data>().lp_tokens.push(lp_token);
         let pool_length = self.pool_length();
+
         if let Some(rewarder_address) = rewarder {
             self.data::<Data>()
                 .rewarders
@@ -64,6 +67,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         self.data::<Data>().pool_info_length = pool_length
             .checked_add(1)
             .ok_or(FarmingError::AddOverflow2)?;
+
         self._emit_log_pool_addition_event(pool_length, alloc_point, lp_token, rewarder);
         Ok(())
     }
@@ -73,9 +77,30 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         let mut pool = self
             .get_pool_infos(pool_id)
             .ok_or(FarmingError::PoolNotFound4)?;
-        let mut user = self.data::<Data>().user_info.get(&(pool_id, user));
+        let mut user_info = self
+            .get_user_info(pool_id, user)
+            .ok_or(FarmingError::UserNotFound)?;
+        let mut acc_arsw_per_share = pool.acc_arsw_per_share;
 
-        Ok(1_000_000_000_000_000_000)
+        let lp_supply = self._get_lp_supply(pool_id)?;
+        let current_block = Self::env().block_number();
+
+        if current_block > pool.last_reward_block && lp_supply != 0 {
+            let additional_acc_arsw_per_share =
+                self._calculate_additional_acc_arsw_per_share(&pool, current_block, lp_supply)?;
+            acc_arsw_per_share = acc_arsw_per_share
+                .checked_add(additional_acc_arsw_per_share)
+                .ok_or(FarmingError::AddOverflow8)?;
+        }
+
+        let pending = (user_info
+            .amount
+            .checked_mul(acc_arsw_per_share)
+            .ok_or(FarmingError::MulOverflow9)?
+            / ACC_ARSW_PRECISION)
+            .checked_sub(user_info.reward_debt)
+            .ok_or(FarmingError::SubUnderflow6)?;
+        Ok(pending)
     }
 
     #[ink(message)]
@@ -85,16 +110,17 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         amount: Balance,
         to: AccountId,
     ) -> Result<(), FarmingError> {
-        let (prev_amount, prev_reward_debt) = self.get_user_info(pool_id, to).unwrap_or((0, 0));
+        let user_info = self.get_user_info(pool_id, to).unwrap_or_default();
         // TODO: Fix reward_debt
         self.data::<Data>().user_info.insert(
             &(pool_id, to),
-            &(
-                prev_amount
+            &UserInfo {
+                amount: user_info
+                    .amount
                     .checked_add(amount)
                     .ok_or(FarmingError::AddOverflow1)?,
-                prev_reward_debt,
-            ),
+                reward_debt: user_info.reward_debt,
+            },
         );
         let lp_token = self
             .get_lp_token(pool_id)
@@ -120,18 +146,19 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             return Err(FarmingError::ZeroWithdrawal)
         }
         let caller = Self::env().caller();
-        let (prev_amount, prev_reward_debt) = self
+        let user_info = self
             .get_user_info(pool_id, caller)
             .ok_or(FarmingError::UserNotFound)?;
         // TODO: Fix reward_debt
         self.data::<Data>().user_info.insert(
-            &(pool_id, caller),
-            &(
-                prev_amount
+            &(pool_id, to),
+            &UserInfo {
+                amount: user_info
+                    .amount
                     .checked_sub(amount)
                     .ok_or(FarmingError::SubUnderflow2)?,
-                prev_reward_debt,
-            ),
+                reward_debt: user_info.reward_debt,
+            },
         );
         let lp_token = self
             .get_lp_token(pool_id)
@@ -167,10 +194,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .ok_or(FarmingError::PoolNotFound1)?;
         let current_block = Self::env().block_number();
         if current_block > pool.last_reward_block {
-            let lp_token = self
-                .get_lp_token(pool_id)
-                .ok_or(FarmingError::LpTokenNotFound)?;
-            let lp_supply = PSP22Ref::balance_of(&lp_token, Self::env().account_id());
+            let lp_supply = self._get_lp_supply(pool_id)?;
             if lp_supply > 0 {
                 let additional_acc_arsw_per_share =
                     self._calculate_additional_acc_arsw_per_share(&pool, current_block, lp_supply)?;
@@ -298,6 +322,13 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             )
             .ok_or(FarmingError::MulOverflow2)?)
     }
+
+    fn _get_lp_supply(&self, pool_id: u32) -> Result<Balance, FarmingError> {
+        let lp_token = self
+            .get_lp_token(pool_id)
+            .ok_or(FarmingError::LpTokenNotFound)?;
+        Ok(PSP22Ref::balance_of(&lp_token, Self::env().account_id()))
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -320,6 +351,7 @@ pub enum FarmingError {
     SubUnderflow3,
     SubUnderflow4,
     SubUnderflow5,
+    SubUnderflow6,
     AddOverflow1,
     AddOverflow2,
     AddOverflow3,
@@ -336,6 +368,7 @@ pub enum FarmingError {
     MulOverflow6,
     MulOverflow7,
     MulOverflow8,
+    MulOverflow9,
     PowOverflow1,
     PowOverflow2,
     DivByZero1,

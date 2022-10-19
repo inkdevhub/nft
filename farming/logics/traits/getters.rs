@@ -1,5 +1,8 @@
 use crate::traits::{
-    data::Pool,
+    data::{
+        Pool,
+        UserInfo,
+    },
     farming::Data,
 };
 use ink_env::AccountId;
@@ -18,7 +21,7 @@ pub trait FarmingGetters: Storage<Data> {
     }
 
     #[ink(message)]
-    fn get_user_info(&self, pool_id: u32, user: AccountId) -> Option<(u128, i128)> {
+    fn get_user_info(&self, pool_id: u32, user: AccountId) -> Option<UserInfo> {
         self.data::<Data>().user_info.get(&(pool_id, user))
     }
 

@@ -3,7 +3,10 @@ use ink_storage::{
     traits::*,
     Mapping,
 };
-use openbrush::traits::AccountId;
+use openbrush::traits::{
+    AccountId,
+    Balance,
+};
 use scale::{
     Decode,
     Encode,
@@ -19,6 +22,13 @@ pub struct Pool {
     pub alloc_point: u32,
 }
 
+#[derive(Encode, Decode, SpreadLayout, PackedLayout, SpreadAllocate, Default)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
+pub struct UserInfo {
+    pub amount: Balance,
+    pub reward_debt: i128,
+}
+
 #[derive(Default, Debug)]
 #[openbrush::upgradeable_storage(STORAGE_KEY)]
 pub struct Data {
@@ -30,7 +40,7 @@ pub struct Data {
     /// Value (`amount`: u128, `reward_debt`: u128)
     /// `amount` LP token amount the user has provided.
     /// `reward_debt` The amount of ARSW entitled to the user.
-    pub user_info: Mapping<(u32, AccountId), (u128, i128)>,
+    pub user_info: Mapping<(u32, AccountId), UserInfo>,
 
     /// Info of each MasterChef pool.
     /// Key `pool_id`: u32
