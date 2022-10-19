@@ -234,7 +234,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     }
 
     fn _update_pool(&mut self, pool_id: u32) -> Result<(), FarmingError> {
-        let pool = self
+        let mut pool = self
             .get_pool_infos(pool_id)
             .ok_or(FarmingError::PoolNotFound1)?;
         let current_block = Self::env().block_number();
