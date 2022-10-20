@@ -3,7 +3,7 @@
 
 #[openbrush::contract]
 pub mod farming {
-    use farming::traits::{
+    use farming::traits::master_chef::{
         events::*,
         farming::*,
         getters::*,

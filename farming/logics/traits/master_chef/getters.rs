@@ -1,4 +1,4 @@
-use crate::traits::{
+use crate::traits::master_chef::{
     data::{
         Pool,
         UserInfo,

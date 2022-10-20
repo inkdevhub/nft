@@ -1,5 +1,8 @@
-use crate::traits::data::UserInfo;
-pub use crate::traits::{
+use crate::traits::master_chef::{
+    data::UserInfo,
+    errors::FarmingError,
+};
+pub use crate::traits::master_chef::{
     data::{
         Data,
         Pool,
@@ -11,19 +14,18 @@ use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::{
         ownable::*,
-        traits::psp22::{
-            PSP22Error,
-            PSP22Ref,
-        },
+        traits::psp22::PSP22Ref,
     },
     modifiers,
     traits::{
         AccountId,
         Balance,
         Storage,
+        ZERO_ADDRESS,
     },
 };
 
+// Cannot be 0 or it will panic!
 pub const ACC_ARSW_PRECISION: u128 = 1_000_000_000_000;
 pub const ARTHSWAP_ORIGIN_BLOCK: u32 = 1u32;
 pub const BLOCK_PER_PERIOD: u32 = 215000u32;
@@ -148,10 +150,8 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         .map_err(|_| FarmingError::CastToi128Error)?
         .checked_sub(user_info.reward_debt)
         .ok_or(FarmingError::SubUnderflow6)?;
-        Ok(
-            <i128 as TryInto<u128>>::try_into(pending)
-                .map_err(|_| FarmingError::CastTou128Error)?,
-        )
+        Ok(<i128 as TryInto<u128>>::try_into(pending)
+            .map_err(|_| FarmingError::CastTou128Error1)?)
     }
 
     #[ink(message)]
@@ -161,18 +161,41 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         amount: Balance,
         to: AccountId,
     ) -> Result<(), FarmingError> {
-        let user_info = self.get_user_info(pool_id, to).unwrap_or_default();
-        // TODO: Fix reward_debt
+        let pool = self
+            .get_pool_infos(pool_id)
+            .ok_or(FarmingError::PoolNotFound4)?;
+        let user = self.get_user_info(pool_id, to).unwrap_or_default();
+        let user_amount = user
+            .amount
+            .checked_add(amount)
+            .ok_or(FarmingError::AddOverflow10)?;
+        let user_reward_debt = user
+            .reward_debt
+            .checked_add(
+                <u128 as TryInto<i128>>::try_into(
+                    amount
+                        .checked_mul(pool.acc_arsw_per_share)
+                        .ok_or(FarmingError::MulOverflow10)?
+                        / ACC_ARSW_PRECISION,
+                )
+                .map_err(|_| FarmingError::CastToi128Error2)?,
+            )
+            .ok_or(FarmingError::AddOverflow11)?;
+
         self.data::<Data>().user_info.insert(
             &(pool_id, to),
             &UserInfo {
-                amount: user_info
-                    .amount
-                    .checked_add(amount)
-                    .ok_or(FarmingError::AddOverflow1)?,
-                reward_debt: user_info.reward_debt,
+                amount: user_amount,
+                reward_debt: user_reward_debt,
             },
         );
+
+        if let Some(rewarder_address) = self.get_rewarder(pool_id) {
+            if rewarder_address != ZERO_ADDRESS.into() {
+                // rewarder.onARSWReward(pid, to, to, 0, user.amount);
+            }
+        }
+
         let lp_token = self
             .get_lp_token(pool_id)
             .ok_or(FarmingError::PoolNotFound2)?;
@@ -379,68 +402,5 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .get_lp_token(pool_id)
             .ok_or(FarmingError::LpTokenNotFound)?;
         Ok(PSP22Ref::balance_of(&lp_token, Self::env().account_id()))
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum FarmingError {
-    OwnableError(OwnableError),
-    PSP22Error(PSP22Error),
-    DuplicateLPToken,
-    PoolNotFound1,
-    PoolNotFound2,
-    PoolNotFound3,
-    PoolNotFound4,
-    PoolNotFound5,
-    UserNotFound,
-    ZeroWithdrawal,
-    LpTokenNotFound,
-    LpSupplyIsZero,
-    BlockNumberLowerThanOriginBlock,
-    CastToi128Error,
-    CastTou128Error,
-    RewarderNotFound,
-    SubUnderflow1,
-    SubUnderflow2,
-    SubUnderflow3,
-    SubUnderflow4,
-    SubUnderflow5,
-    SubUnderflow6,
-    SubUnderflow7,
-    AddOverflow1,
-    AddOverflow2,
-    AddOverflow3,
-    AddOverflow4,
-    AddOverflow5,
-    AddOverflow6,
-    AddOverflow7,
-    AddOverflow8,
-    AddOverflow9,
-    MulOverflow1,
-    MulOverflow2,
-    MulOverflow3,
-    MulOverflow4,
-    MulOverflow5,
-    MulOverflow6,
-    MulOverflow7,
-    MulOverflow8,
-    MulOverflow9,
-    PowOverflow1,
-    PowOverflow2,
-    DivByZero1,
-    DivByZero2,
-    DivByZero3,
-}
-
-impl From<OwnableError> for FarmingError {
-    fn from(error: OwnableError) -> Self {
-        FarmingError::OwnableError(error)
-    }
-}
-
-impl From<PSP22Error> for FarmingError {
-    fn from(error: PSP22Error) -> Self {
-        FarmingError::PSP22Error(error)
     }
 }
