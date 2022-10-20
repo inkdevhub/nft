@@ -23,7 +23,7 @@ The UI is a react app and uses polkadotjs to interact with the node
 On Chain governance based on [Governor](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/governance) contracts of OpenZeppelin
 
 #### Tests
-The tests folders contains end-to-end tests for the contracts.
+The test folder contains integration tests for the contracts.
 
 **Runs the tests**
 1. Run a local node \
