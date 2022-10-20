@@ -18,3 +18,9 @@ yarn.lock
 
 .vscode
 .idea
+
+node_modules/
+
+.next/
+
+target/
