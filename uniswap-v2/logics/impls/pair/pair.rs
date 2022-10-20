@@ -1,4 +1,7 @@
-use crate::traits::{factory::FactoryRef, types::WrappedU256};
+use crate::traits::{
+    factory::FactoryRef,
+    types::WrappedU256,
+};
 pub use crate::{
     impls::pair::*,
     traits::pair::*,
@@ -23,8 +26,9 @@ use openbrush::{
 };
 use primitive_types::U256;
 use sp_arithmetic::{
+    traits::IntegerSquareRoot,
     FixedPointNumber,
-    FixedU128, traits::IntegerSquareRoot,
+    FixedU128,
 };
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
@@ -83,7 +87,8 @@ impl<
             let liq = amount_0
                 .checked_mul(amount_1)
                 .ok_or(PairError::MulOverFlow1)?;
-            liquidity = liq.integer_sqrt()
+            liquidity = liq
+                .integer_sqrt()
                 .checked_sub(MINIMUM_LIQUIDITY)
                 .ok_or(PairError::SubUnderFlow3)?;
             self._mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
@@ -343,7 +348,8 @@ impl<
             if k_last != 0 {
                 let root_k = reserve_0
                     .checked_mul(reserve_1)
-                    .ok_or(PairError::MulOverFlow14)?.integer_sqrt();
+                    .ok_or(PairError::MulOverFlow14)?
+                    .integer_sqrt();
                 let root_k_last = k_last.integer_sqrt();
                 if root_k > root_k_last {
                     let total_supply = self.data::<psp22::Data>().supply;
