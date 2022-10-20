@@ -14,6 +14,8 @@ use openbrush::{
     },
 };
 
+use super::types::WrappedU256;
+
 #[openbrush::wrapper]
 pub type PairRef = dyn Pair;
 
@@ -21,6 +23,12 @@ pub type PairRef = dyn Pair;
 pub trait Pair {
     #[ink(message)]
     fn get_reserves(&self) -> (Balance, Balance, Timestamp);
+
+    #[ink(message)]
+    fn price_0_cumulative_last(&self) -> WrappedU256;
+
+    #[ink(message)]
+    fn price_1_cumulative_last(&self) -> WrappedU256;
 
     #[ink(message)]
     fn initialize(&mut self, token_0: AccountId, token_1: AccountId) -> Result<(), PairError>;
