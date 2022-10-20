@@ -16,7 +16,7 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 openbrush = { version = "2.2.0", default-features = false, features = ["psp22", "ownable", "reentrancy_guard"] }
-primitive-types = { version = "0.11.1", default-features = false, features = ["num-traits"] }
+primitive-types = { version = "0.11.1", default-features = false, features = ["codec"] }
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28"}
 
 [lib]
