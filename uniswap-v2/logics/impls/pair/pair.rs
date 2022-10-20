@@ -22,6 +22,10 @@ use openbrush::{
     },
 };
 use primitive_types::U256;
+use sp_arithmetic::{
+    FixedPointNumber,
+    FixedU128, traits::IntegerSquareRoot,
+};
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
 
@@ -38,6 +42,13 @@ impl<
             self.data::<data::Data>().reserve_1,
             self.data::<data::Data>().block_timestamp_last,
         )
+    }
+    default fn price_0_cumulative_last(&self) -> WrappedU256 {
+        self.data::<data::Data>().price_0_cumulative_last
+    }
+
+    default fn price_1_cumulative_last(&self) -> WrappedU256 {
+        self.data::<data::Data>().price_1_cumulative_last
     }
 
     #[modifiers(only_owner)]
@@ -72,7 +83,7 @@ impl<
             let liq = amount_0
                 .checked_mul(amount_1)
                 .ok_or(PairError::MulOverFlow1)?;
-            liquidity = sqrt(liq)
+            liquidity = liq.integer_sqrt()
                 .checked_sub(MINIMUM_LIQUIDITY)
                 .ok_or(PairError::SubUnderFlow3)?;
             self._mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
@@ -330,12 +341,10 @@ impl<
         let k_last = self.data::<data::Data>().k_last;
         if fee_on {
             if k_last != 0 {
-                let root_k = sqrt(
-                    reserve_0
-                        .checked_mul(reserve_1)
-                        .ok_or(PairError::MulOverFlow14)?,
-                );
-                let root_k_last = sqrt(k_last);
+                let root_k = reserve_0
+                    .checked_mul(reserve_1)
+                    .ok_or(PairError::MulOverFlow14)?.integer_sqrt();
+                let root_k_last = k_last.integer_sqrt();
                 if root_k > root_k_last {
                     let total_supply = self.data::<psp22::Data>().supply;
                     let numerator = total_supply
@@ -375,16 +384,17 @@ impl<
             return Err(PairError::Overflow)
         }
         let now = Self::env().block_timestamp();
-        let time_elapsed = now - self.data::<data::Data>().block_timestamp_last;
-        if time_elapsed > 0 && reserve_0 != 0 && reserve_1 != 0 {
-            let price_cumulative_last_0 = (reserve_1 / reserve_0)
-                .checked_mul(time_elapsed as u128)
-                .ok_or(PairError::MulOverFlow4)?;
-            let price_cumulative_last_1 = (reserve_0 / reserve_1)
-                .checked_mul(time_elapsed as u128)
-                .ok_or(PairError::MulOverFlow4)?;
-            self.data::<data::Data>().price_0_cumulative_last += price_cumulative_last_0;
-            self.data::<data::Data>().price_1_cumulative_last += price_cumulative_last_1;
+        let last_timestamp = self.data::<data::Data>().block_timestamp_last;
+        if now != last_timestamp {
+            let (price_0_cumulative_last, price_1_cumulative_last) = update_cumulative(
+                self.data::<data::Data>().price_0_cumulative_last,
+                self.data::<data::Data>().price_1_cumulative_last,
+                now.saturating_sub(last_timestamp).into(),
+                reserve_0,
+                reserve_1,
+            );
+            self.data::<data::Data>().price_0_cumulative_last = price_0_cumulative_last;
+            self.data::<data::Data>().price_1_cumulative_last = price_1_cumulative_last;
         }
         self.data::<data::Data>().reserve_0 = balance_0;
         self.data::<data::Data>().reserve_1 = balance_1;
@@ -424,15 +434,57 @@ fn min(x: u128, y: u128) -> u128 {
     y
 }
 
-fn sqrt(y: u128) -> u128 {
-    let mut z = 1;
-    if y > 3 {
-        z = y;
-        let mut x = y / 2 + 1;
-        while x < z {
-            z = x;
-            x = (y / x + x) / 2;
-        }
+#[inline]
+fn update_cumulative(
+    price_0_cumulative_last: WrappedU256,
+    price_1_cumulative_last: WrappedU256,
+    time_elapsed: U256,
+    reserve_0: Balance,
+    reserve_1: Balance,
+) -> (WrappedU256, WrappedU256) {
+    let price_cumulative_last_0: WrappedU256 = U256::from(
+        FixedU128::checked_from_rational(reserve_1, reserve_0)
+            .unwrap_or_default()
+            .into_inner(),
+    )
+    .saturating_mul(time_elapsed)
+    .saturating_add(price_0_cumulative_last.into())
+    .into();
+    let price_cumulative_last_1: WrappedU256 = U256::from(
+        FixedU128::checked_from_rational(reserve_0, reserve_1)
+            .unwrap_or_default()
+            .into_inner(),
+    )
+    .saturating_mul(time_elapsed)
+    .saturating_add(price_1_cumulative_last.into())
+    .into();
+    (price_cumulative_last_0, price_cumulative_last_1)
+}
+
+#[cfg(test)]
+mod tests {
+    use primitive_types::U256;
+    use sp_arithmetic::FixedU128;
+
+    use super::update_cumulative;
+
+    #[test]
+    fn update_cumulative_from_zero_time_elapsed() {
+        let (cumulative0, cumulative1) = update_cumulative(0.into(), 0.into(), 0.into(), 10, 10);
+        assert_eq!(cumulative0, 0.into());
+        assert_eq!(cumulative1, 0.into());
     }
-    z
+
+    #[test]
+    fn update_cumulative_from_one_time_elapsed() {
+        let (cumulative0, cumulative1) = update_cumulative(0.into(), 0.into(), 1.into(), 10, 10);
+        assert_eq!(
+            FixedU128::from_inner(U256::from(cumulative0).as_u128()),
+            1.into()
+        );
+        assert_eq!(
+            FixedU128::from_inner(U256::from(cumulative1).as_u128()),
+            1.into()
+        );
+    }
 }
