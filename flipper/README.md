@@ -24,8 +24,10 @@ In `./flipper` folder run `swanky init flipper` and chose `flipper` as template 
 - `cd flipper`
 - `swanky node start`
 
-2. Build the contract
+2. Build the contract \
 
+Until this [issue on ink!](https://github.com/paritytech/ink/pull/1439) is not resolved please use [this workaround](https://substrate.stackexchange.com/questions/4785/errore0158-when-testing-default-contract-from-flipper/4847#4847) \
+When resolved please use swanky: \
 `swanky contract compile flipper`
 
 3. deploy the contract
