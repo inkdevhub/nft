@@ -24,7 +24,7 @@ use openbrush::{
     },
 };
 
-pub const ACC_ARSW_PRECISION: u8 = 12;
+pub const ACC_ARSW_PRECISION: u128 = 1_000_000_000_000;
 pub const ARTHSWAP_ORIGIN_BLOCK: u32 = 1u32;
 pub const BLOCK_PER_PERIOD: u32 = 215000u32;
 pub const MAX_PERIOD: u32 = 23u32;
@@ -78,13 +78,13 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         &mut self,
         pool_id: u32,
         alloc_point: u32,
-        rewarder: AccountId,
+        rewarder: Option<AccountId>,
         overwrite: bool,
     ) -> Result<(), FarmingError> {
-        self._update_all_pools()?;
         let pool_info = self
             .get_pool_infos(pool_id)
             .ok_or(FarmingError::PoolNotFound5)?;
+        self._update_all_pools()?;
         self.data::<Data>().total_alloc_point = self
             .data::<Data>()
             .total_alloc_point
@@ -102,10 +102,16 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         );
         let mut rewarder = rewarder;
         if overwrite {
-            self.data::<Data>().rewarders.insert(&pool_id, &rewarder);
-            rewarder = self
-                .get_rewarder(pool_id)
-                .ok_or(FarmingError::RewarderNotFound)?;
+            match rewarder {
+                Some(rewarder_address) => {
+                    self.data::<Data>()
+                        .rewarders
+                        .insert(&pool_id, &rewarder_address)
+                }
+                None => self.data::<Data>().rewarders.remove(&pool_id),
+            }
+        } else {
+            rewarder = self.get_rewarder(pool_id);
         }
         self._emit_log_set_pool_event(pool_id, alloc_point, rewarder, overwrite);
         Ok(())
@@ -137,7 +143,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                 .amount
                 .checked_mul(acc_arsw_per_share)
                 .ok_or(FarmingError::MulOverflow9)?
-                / ACC_ARSW_PRECISION as u128,
+                / ACC_ARSW_PRECISION,
         )
         .map_err(|_| FarmingError::CastToi128Error)?
         .checked_sub(user_info.reward_debt)
@@ -322,7 +328,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         }
 
         Ok(arsw_reward
-            .checked_mul(ACC_ARSW_PRECISION.into())
+            .checked_mul(ACC_ARSW_PRECISION)
             .ok_or(FarmingError::MulOverflow8)?
             .checked_div(lp_supply)
             .ok_or(FarmingError::DivByZero3)?)

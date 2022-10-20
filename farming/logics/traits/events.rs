@@ -54,7 +54,7 @@ pub trait FarmingEvents {
         &self,
         _pool_id: u32,
         _alloc_point: u32,
-        _rewarder: AccountId,
+        _rewarder: Option<AccountId>,
         _overwrite: bool,
     ) {
     }
