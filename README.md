@@ -20,7 +20,7 @@ This is an hello world! example with a basic flipper contract and an UI to inter
 The UI is a react app and uses polkadotjs to interact with the node
 
 #### DAO
-On Chain governance Based on [Governor](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/governance) contracts of OpenZeppelin
+On Chain governance based on [Governor](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/governance) contracts of OpenZeppelin
 
 #### Tests
 The tests folders contains end-to-end tests for the contracts.
