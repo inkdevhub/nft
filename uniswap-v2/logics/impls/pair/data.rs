@@ -1,3 +1,4 @@
+use crate::traits::types::WrappedU256;
 use openbrush::traits::{
     AccountId,
     Balance,
@@ -15,8 +16,8 @@ pub struct Data {
     pub reserve_0: Balance,
     pub reserve_1: Balance,
     pub block_timestamp_last: Timestamp,
-    pub price_0_cumulative_last: Balance,
-    pub price_1_cumulative_last: Balance,
+    pub price_0_cumulative_last: WrappedU256,
+    pub price_1_cumulative_last: WrappedU256,
     pub k_last: u128,
     pub lock: bool,
 }
