@@ -1,4 +1,4 @@
-use crate::traits::pair::WrappedU256;
+use crate::traits::types::WrappedU256;
 use openbrush::traits::{
     AccountId,
     Balance,

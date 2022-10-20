@@ -1,4 +1,4 @@
-use crate::traits::factory::FactoryRef;
+use crate::traits::{factory::FactoryRef, types::WrappedU256};
 pub use crate::{
     impls::pair::*,
     traits::pair::*,
