@@ -167,6 +167,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         let pool = self
             .get_pool_infos(pool_id)
             .ok_or(FarmingError::PoolNotFound4)?;
+        self._update_pool(pool_id)?;
         let user = self.get_user_info(pool_id, to).unwrap_or_default();
         let user_amount = user
             .amount
@@ -222,21 +223,46 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         if amount == 0 {
             return Err(FarmingError::ZeroWithdrawal)
         }
+        let pool = self
+            .get_pool_infos(pool_id)
+            .ok_or(FarmingError::PoolNotFound6)?;
+        self._update_pool(pool_id)?;
         let caller = Self::env().caller();
-        let user_info = self
+        let user = self
             .get_user_info(pool_id, caller)
             .ok_or(FarmingError::UserNotFound)?;
-        // TODO: Fix reward_debt
+        let user_reward_debt = user
+            .reward_debt
+            .checked_sub(
+                <u128 as TryInto<i128>>::try_into(
+                    amount
+                        .checked_mul(pool.acc_arsw_per_share)
+                        .ok_or(FarmingError::MulOverflow11)?
+                        / ACC_ARSW_PRECISION,
+                )
+                .map_err(|_| FarmingError::CastToi128Error4)?,
+            )
+            .ok_or(FarmingError::SubUnderflow8)?;
+
+        let user_amount = user
+            .amount
+            .checked_sub(amount)
+            .ok_or(FarmingError::AddOverflow12)?;
+
         self.data::<Data>().user_info.insert(
             &(pool_id, to),
             &UserInfo {
-                amount: user_info
-                    .amount
-                    .checked_sub(amount)
-                    .ok_or(FarmingError::SubUnderflow2)?,
-                reward_debt: user_info.reward_debt,
+                amount: user_amount,
+                reward_debt: user_reward_debt,
             },
         );
+
+        if let Some(rewarder_address) = self.get_rewarder(pool_id) {
+            if rewarder_address != ZERO_ADDRESS.into() {
+                RewarderRef::on_arsw_reward(&rewarder_address, caller, to, user_amount)?;
+            }
+        }
+
         let lp_token = self
             .get_lp_token(pool_id)
             .ok_or(FarmingError::PoolNotFound3)?;
@@ -245,7 +271,54 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     }
 
     #[ink(message)]
-    fn harvest(&mut self, _pool_id: u32, _to: AccountId) -> Result<(), FarmingError> {
+    fn harvest(&mut self, pool_id: u32, to: AccountId) -> Result<(), FarmingError> {
+        let pool = self
+            .get_pool_infos(pool_id)
+            .ok_or(FarmingError::PoolNotFound7)?;
+        self._update_pool(pool_id)?;
+        let caller = Self::env().caller();
+        let user = self
+            .get_user_info(pool_id, caller)
+            .ok_or(FarmingError::UserNotFound)?;
+
+        let accumulated_arsw = <u128 as TryInto<i128>>::try_into(
+            user.amount
+                .checked_mul(pool.acc_arsw_per_share)
+                .ok_or(FarmingError::MulOverflow12)?
+                / ACC_ARSW_PRECISION,
+        )
+        .map_err(|_| FarmingError::CastToi128Error3)?;
+
+        let pending_arsw = <i128 as TryInto<u128>>::try_into(
+            accumulated_arsw
+                .checked_sub(user.reward_debt)
+                .ok_or(FarmingError::SubUnderflow9)?,
+        )
+        .map_err(|_| FarmingError::CastTou128Error2)?;
+
+        self.data::<Data>().user_info.insert(
+            &(pool_id, to),
+            &UserInfo {
+                reward_debt: accumulated_arsw,
+                ..user
+            },
+        );
+
+        if pending_arsw != 0 {
+            PSP22Ref::transfer(
+                &mut self.data::<Data>().arsw_token,
+                to,
+                pending_arsw,
+                Vec::new(),
+            )?;
+        }
+
+        if let Some(rewarder_address) = self.get_rewarder(pool_id) {
+            if rewarder_address != ZERO_ADDRESS.into() {
+                RewarderRef::on_arsw_reward(&rewarder_address, caller, to, pending_arsw)?;
+            }
+        }
+
         Ok(())
     }
 
