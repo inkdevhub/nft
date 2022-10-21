@@ -9,6 +9,7 @@ pub use crate::{
         router::*,
     },
 };
+use ink_env::hash::Blake2x256;
 use ink_prelude::{
     vec,
     vec::Vec,
@@ -425,20 +426,22 @@ impl<T: Storage<data::Data>> Router for T {
         Ok(())
     }
 
-    /// Original Uniswap Library pairFor function calculate pair contract address without making cross contract calls.
-    /// Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
-    ///
-    /// In this contract, use cross contract call to get pair contract address.
     default fn _pair_for(
         &self,
         factory: AccountId,
         token_a: AccountId,
         token_b: AccountId,
     ) -> Result<AccountId, RouterError> {
-        let (token_0, token_1) = self._sort_tokens(token_a, token_b)?;
-        let pair =
-            FactoryRef::get_pair(&factory, token_0, token_1).ok_or(RouterError::PairNotFound)?;
-        Ok(pair)
+        // TODO: remove pair code hash after deployment
+        let tokens = self._sort_tokens(token_a, token_b)?;
+        let salt = &Self::env().hash_encoded::<Blake2x256, _>(&tokens)[..4];
+        let input: Vec<_> = AsRef::<[u8]>::as_ref(&factory)
+            .iter()
+            .chain(self.data().pair_code_hash.as_ref())
+            .chain(salt)
+            .cloned()
+            .collect();
+        Ok(Self::env().hash_bytes::<Blake2x256>(&input).into())
     }
 
     default fn _sort_tokens(
