@@ -1,3 +1,4 @@
+use crate::traits::rewarder::errors::RewarderError;
 use openbrush::contracts::{
     ownable::*,
     traits::psp22::PSP22Error,
@@ -8,6 +9,7 @@ use openbrush::contracts::{
 pub enum FarmingError {
     OwnableError(OwnableError),
     PSP22Error(PSP22Error),
+    RewarderError(RewarderError),
     DuplicateLPToken,
     PoolNotFound1,
     PoolNotFound2,
@@ -67,5 +69,11 @@ impl From<OwnableError> for FarmingError {
 impl From<PSP22Error> for FarmingError {
     fn from(error: PSP22Error) -> Self {
         FarmingError::PSP22Error(error)
+    }
+}
+
+impl From<RewarderError> for FarmingError {
+    fn from(error: RewarderError) -> Self {
+        FarmingError::RewarderError(error)
     }
 }

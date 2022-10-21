@@ -2,13 +2,16 @@ use crate::traits::master_chef::{
     data::UserInfo,
     errors::FarmingError,
 };
-pub use crate::traits::master_chef::{
-    data::{
-        Data,
-        Pool,
+pub use crate::traits::{
+    master_chef::{
+        data::{
+            Data,
+            Pool,
+        },
+        events::FarmingEvents,
+        getters::FarmingGetters,
     },
-    events::FarmingEvents,
-    getters::FarmingGetters,
+    rewarder::rewarder::RewarderRef,
 };
 use ink_prelude::vec::Vec;
 use openbrush::{
@@ -192,7 +195,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
 
         if let Some(rewarder_address) = self.get_rewarder(pool_id) {
             if rewarder_address != ZERO_ADDRESS.into() {
-                // rewarder.onARSWReward(pid, to, to, 0, user.amount);
+                RewarderRef::on_arsw_reward(&rewarder_address, to, to, user_amount)?;
             }
         }
 
