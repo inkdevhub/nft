@@ -13,7 +13,8 @@ This folder contains the line by line implementation of [uniswap-v2 core](https:
 The UI template is in active development and will be public in January 23
 
 ### Farming
-A farming dApp implementing Master Chef of [sushiswap](https://github.com/sushiswap/sushiswap/blob/archieve/canary/contracts/MasterChefV2.sol) 
+A farming dApp line by line implementation of [ArthSwap master chef](https://github.com/ArthSwap/ArthSwap-MasterChef) adapted from 
+[sushiswap](https://github.com/sushiswap/sushiswap/blob/archieve/canary/contracts/MasterChefV2.sol) 
 
 ### Fliper + UI 
 This is an hello world! example with a basic flipper contract and an UI to interact with it.
