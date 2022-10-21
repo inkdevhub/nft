@@ -2,7 +2,7 @@
 #![feature(min_specialization)]
 
 #[openbrush::contract]
-pub mod farming {
+pub mod master_chef_contract {
     use farming::traits::master_chef::{
         events::*,
         farming::*,
