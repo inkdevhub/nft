@@ -1,5 +1,5 @@
 # Astar WASM showcase dApps
-This repository contains examples of ink! contracts and their respective UIs that can be deployed on Atar netwroks.
+This repository contains examples of ink! contracts and their respective UIs that can be deployed on Astar network.
 If you are looking for unaudited production ready dApps (ink! + UI) this repo is for you.
 
 #### Contribute to this repository
