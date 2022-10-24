@@ -10,10 +10,7 @@ pub use crate::{
     },
 };
 use ink_env::hash::Blake2x256;
-use ink_prelude::{
-    vec,
-    vec::Vec,
-};
+use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::traits::psp22::PSP22Ref,
     modifier_definition,
@@ -26,9 +23,6 @@ use openbrush::{
     },
 };
 use primitive_types::U256;
-
-// Chain decimals is 18
-pub const ONE: u128 = 1_000_000_000_000_000_000;
 
 impl<T: Storage<data::Data>> Router for T {
     default fn factory(&self) -> AccountId {
@@ -286,7 +280,8 @@ impl<T: Storage<data::Data>> Router for T {
             return Err(RouterError::InvalidPath)
         }
 
-        let mut amounts: Vec<Balance> = vec![amount_in];
+        let mut amounts = Vec::with_capacity(path.len());
+        amounts.push(amount_in);
         for i in 0..path.len() - 1 {
             let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
             amounts.push(self.get_amount_out(amounts[i], reserve_in, reserve_out)?);
@@ -305,10 +300,11 @@ impl<T: Storage<data::Data>> Router for T {
             return Err(RouterError::InvalidPath)
         }
 
-        let mut amounts: Vec<Balance> = vec![amount_out];
-        for i in 0..path.len() - 1 {
-            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
-            amounts.push(self.get_amount_in(amounts[i], reserve_in, reserve_out)?);
+        let mut amounts = Vec::with_capacity(path.len());
+        amounts[path.len() - 1] = amount_out;
+        for i in (0..path.len() - 1).rev() {
+            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i + 1], path[i])?;
+            amounts[i] = self.get_amount_in(amounts[i + 1], reserve_in, reserve_out)?;
         }
 
         Ok(amounts)
@@ -327,22 +323,21 @@ impl<T: Storage<data::Data>> Router for T {
             return Err(RouterError::InsufficientLiquidity)
         }
 
-        let numerator: U256 = U256::from(reserve_in)
-            .checked_mul(U256::from(amount_out))
-            .ok_or(RouterError::MulOverFlow2)?
-            .checked_mul(U256::from(1000))
-            .ok_or(RouterError::MulOverFlow3)?;
+        let numerator = casted_mul(reserve_in, amount_out)
+            .checked_mul(1000.into())
+            .ok_or(RouterError::MulOverFlow2)?;
 
-        let denominator: U256 = U256::from(reserve_out)
-            .checked_sub(U256::from(amount_out))
-            .ok_or(RouterError::SubUnderFlow1)?
-            .checked_mul(U256::from(997))
-            .ok_or(RouterError::MulOverFlow4)?;
+        let denominator = casted_mul(
+            reserve_out
+                .checked_sub(amount_out)
+                .ok_or(RouterError::SubUnderFlow1)?,
+            997,
+        );
 
         let amount_in: Balance = numerator
             .checked_div(denominator)
             .ok_or(RouterError::DivByZero3)?
-            .checked_add(U256::from(ONE as Balance))
+            .checked_add(1.into())
             .ok_or(RouterError::AddOverFlow2)?
             .try_into()
             .map_err(|_| RouterError::CastOverflow3)?;

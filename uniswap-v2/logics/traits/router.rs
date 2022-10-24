@@ -199,8 +199,6 @@ pub enum RouterError {
     SubUnderFlow1,
     MulOverFlow1,
     MulOverFlow2,
-    MulOverFlow3,
-    MulOverFlow4,
     DivByZero1,
     DivByZero2,
     DivByZero3,
