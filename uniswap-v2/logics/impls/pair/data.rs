@@ -18,6 +18,6 @@ pub struct Data {
     pub block_timestamp_last: Timestamp,
     pub price_0_cumulative_last: WrappedU256,
     pub price_1_cumulative_last: WrappedU256,
-    pub k_last: u128,
+    pub k_last: WrappedU256,
     pub lock: bool,
 }
