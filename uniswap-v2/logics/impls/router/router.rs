@@ -426,13 +426,18 @@ impl<T: Storage<data::Data>> Router for T {
         Ok(())
     }
 
+    /// Original Uniswap Library pairFor function calculate pair contract address without making cross contract calls.
+    /// Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
+    ///
+    /// In this contract, use precomputed address like Uniswap's, as ink!'s deployment is done via create2-like one by default.
+    /// Please refer https://github.com/paritytech/substrate/blob/493b58bd4a475080d428ce47193ee9ea9757a808/frame/contracts/src/lib.rs#L178
+    /// for how contract's address is calculated.
     default fn _pair_for(
         &self,
         factory: AccountId,
         token_a: AccountId,
         token_b: AccountId,
     ) -> Result<AccountId, RouterError> {
-        // TODO: remove pair code hash after deployment
         let tokens = self._sort_tokens(token_a, token_b)?;
         let salt = &Self::env().hash_encoded::<Blake2x256, _>(&tokens)[..4];
         let input: Vec<_> = AsRef::<[u8]>::as_ref(&factory)
