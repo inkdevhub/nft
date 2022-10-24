@@ -182,7 +182,7 @@ impl<T: Storage<data::Data>> Router for T {
             Vec::new(),
         )?;
 
-        self._swap(amounts.clone(), path, to)?;
+        self._swap(&amounts, path, to)?;
 
         Ok(amounts)
     }
@@ -211,7 +211,7 @@ impl<T: Storage<data::Data>> Router for T {
             Vec::new(),
         )?;
 
-        self._swap(amounts.clone(), path, to)?;
+        self._swap(&amounts, path, to)?;
 
         Ok(amounts)
     }
@@ -387,7 +387,7 @@ impl<T: Storage<data::Data>> Router for T {
 
     default fn _swap(
         &mut self,
-        amounts: Vec<Balance>,
+        amounts: &Vec<Balance>,
         path: Vec<AccountId>,
         to: AccountId,
     ) -> Result<(), RouterError> {

@@ -149,7 +149,7 @@ pub trait Router {
 
     fn _swap(
         &mut self,
-        amounts: Vec<Balance>,
+        amounts: &Vec<Balance>,
         path: Vec<AccountId>,
         to: AccountId,
     ) -> Result<(), RouterError>;
