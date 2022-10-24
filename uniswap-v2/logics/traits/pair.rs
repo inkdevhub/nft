@@ -141,13 +141,14 @@ pub enum PairError {
     MulOverFlow12,
     MulOverFlow13,
     MulOverFlow14,
-    MulOverFlow15,
     DivByZero1,
     DivByZero2,
     DivByZero3,
     DivByZero4,
     DivByZero5,
     AddOverflow1,
+    CastOverflow1,
+    CastOverflow2,
 }
 
 impl From<OwnableError> for PairError {
