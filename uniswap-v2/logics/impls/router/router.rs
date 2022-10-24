@@ -303,7 +303,7 @@ impl<T: Storage<data::Data>> Router for T {
         let mut amounts = Vec::with_capacity(path.len());
         amounts[path.len() - 1] = amount_out;
         for i in (0..path.len() - 1).rev() {
-            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i + 1], path[i])?;
+            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
             amounts[i] = self.get_amount_in(amounts[i + 1], reserve_in, reserve_out)?;
         }
 
