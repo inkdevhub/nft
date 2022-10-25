@@ -12,15 +12,13 @@ pub mod pair {
     use openbrush::{
         contracts::{
             ownable::*,
-            psp22::{
-                Internal,
-                *,
-            },
+            psp22::*,
             reentrancy_guard,
         },
         traits::Storage,
     };
     use uniswap_v2::{
+        ensure,
         impls::pair::*,
         traits::pair::*,
     };
@@ -97,10 +95,7 @@ pub mod pair {
 
             // In uniswapv2 max allowance never decrease
             if allowance != u128::MAX {
-                if allowance < value {
-                    return Err(PSP22Error::InsufficientAllowance)
-                }
-
+                ensure!(allowance >= value, PSP22Error::InsufficientAllowance);
                 self._approve_from_to(from, caller, allowance - value)?;
             }
             self._transfer_from_to(from, to, value, data)?;
@@ -108,7 +103,7 @@ pub mod pair {
         }
     }
 
-    impl Internal for PairContract {
+    impl psp22::Internal for PairContract {
         // in uniswapv2 no check for zero account
         fn _mint(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
             let mut new_balance = self._balance_of(&account);
@@ -122,9 +117,7 @@ pub mod pair {
         fn _burn_from(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
             let mut from_balance = self._balance_of(&account);
 
-            if from_balance < amount {
-                return Err(PSP22Error::InsufficientBalance)
-            }
+            ensure!(from_balance >= amount, PSP22Error::InsufficientBalance);
 
             from_balance -= amount;
             self.psp22.balances.insert(&account, &from_balance);
@@ -153,9 +146,7 @@ pub mod pair {
         ) -> Result<(), PSP22Error> {
             let from_balance = self._balance_of(&from);
 
-            if from_balance < amount {
-                return Err(PSP22Error::InsufficientBalance)
-            }
+            ensure!(from_balance >= amount, PSP22Error::InsufficientBalance);
 
             self.psp22.balances.insert(&from, &(from_balance - amount));
             let to_balance = self._balance_of(&to);
@@ -181,7 +172,7 @@ pub mod pair {
 
     impl Ownable for PairContract {}
 
-    impl Pair for PairContract {
+    impl pair::Internal for PairContract {
         fn _emit_mint_event(&self, sender: AccountId, amount_0: Balance, amount_1: Balance) {
             self.env().emit_event(Mint {
                 sender,
@@ -232,6 +223,8 @@ pub mod pair {
         }
     }
 
+    impl Pair for PairContract {}
+
     impl PairContract {
         #[ink(constructor)]
         pub fn new() -> Self {
@@ -240,6 +233,20 @@ pub mod pair {
                 instance._init_with_owner(caller);
                 instance.pair.factory = caller;
             })
+        }
+    }
+    #[cfg(test)]
+    mod tests {
+        use ink_env::AccountId;
+
+        use super::*;
+
+        #[ink_lang::test]
+        fn initialize_works() {
+            let mut pair = PairContract::new();
+            let token_0 = AccountId::from([0x03; 32]);
+            let token_1 = AccountId::from([0x04; 32]);
+            assert_eq!(pair.initialize(token_0, token_1), Ok(()));
         }
     }
 }

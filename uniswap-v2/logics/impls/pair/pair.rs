@@ -1,14 +1,16 @@
-use crate::traits::{
-    factory::FactoryRef,
-    math::casted_mul,
-    types::WrappedU256,
+use crate::{
+    ensure,
+    traits::{
+        factory::FactoryRef,
+        math::casted_mul,
+        transfer_helper::safe_transfer,
+        types::WrappedU256,
+    },
 };
 pub use crate::{
     impls::pair::*,
     traits::pair::*,
 };
-use ink_env::CallFlags;
-use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::{
         ownable::*,
@@ -34,6 +36,37 @@ use sp_arithmetic::{
 };
 
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
+
+pub trait Internal {
+    fn _mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError>;
+
+    fn _update(
+        &mut self,
+        balance_0: Balance,
+        balance_1: Balance,
+        reserve_0: Balance,
+        reserve_1: Balance,
+    ) -> Result<(), PairError>;
+
+    fn _emit_mint_event(&self, _sender: AccountId, _amount_0: Balance, _amount_1: Balance);
+    fn _emit_burn_event(
+        &self,
+        _sender: AccountId,
+        _amount_0: Balance,
+        _amount_1: Balance,
+        _to: AccountId,
+    );
+    fn _emit_swap_event(
+        &self,
+        _sender: AccountId,
+        _amount_0_in: Balance,
+        _amount_1_in: Balance,
+        _amount_0_out: Balance,
+        _amount_1_out: Balance,
+        _to: AccountId,
+    );
+    fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance);
+}
 
 impl<
         T: Storage<data::Data>
@@ -108,9 +141,7 @@ impl<
             liquidity = min(liquidity_1, liquidity_2);
         }
 
-        if liquidity == 0 {
-            return Err(PairError::InsufficientLiquidityMinted)
-        }
+        ensure!(liquidity > 0, PairError::InsufficientLiquidityMinted);
 
         self._mint(to, liquidity)?;
 
@@ -148,14 +179,15 @@ impl<
             .checked_div(total_supply)
             .ok_or(PairError::DivByZero4)?;
 
-        if amount_0 == 0 || amount_1 == 0 {
-            return Err(PairError::InsufficientLiquidityBurned)
-        }
+        ensure!(
+            amount_0 > 0 && amount_1 > 0,
+            PairError::InsufficientLiquidityBurned
+        );
 
         self._burn_from(contract, liquidity)?;
 
-        self._safe_transfer(token_0, to, amount_0)?;
-        self._safe_transfer(token_1, to, amount_1)?;
+        safe_transfer(token_0, to, amount_0)?;
+        safe_transfer(token_1, to, amount_1)?;
 
         balance_0 = PSP22Ref::balance_of(&token_0, contract);
         balance_1 = PSP22Ref::balance_of(&token_1, contract);
@@ -178,25 +210,25 @@ impl<
         amount_1_out: Balance,
         to: AccountId,
     ) -> Result<(), PairError> {
-        if amount_0_out == 0 && amount_1_out == 0 {
-            return Err(PairError::InsufficientOutputAmount)
-        }
+        ensure!(
+            amount_0_out > 0 || amount_1_out > 0,
+            PairError::InsufficientOutputAmount
+        );
         let reserves = self.get_reserves();
-        if amount_0_out >= reserves.0 || amount_1_out >= reserves.1 {
-            return Err(PairError::InsufficientLiquidity)
-        }
+        ensure!(
+            amount_0_out < reserves.0 && amount_1_out < reserves.1,
+            PairError::InsufficientLiquidity
+        );
 
         let token_0 = self.data::<data::Data>().token_0;
         let token_1 = self.data::<data::Data>().token_1;
 
-        if to == token_0 || to == token_1 {
-            return Err(PairError::InvalidTo)
-        }
+        ensure!(to != token_0 && to != token_1, PairError::InvalidTo);
         if amount_0_out > 0 {
-            self._safe_transfer(token_0, to, amount_0_out)?;
+            safe_transfer(token_0, to, amount_0_out)?;
         }
         if amount_1_out > 0 {
-            self._safe_transfer(token_1, to, amount_1_out)?;
+            safe_transfer(token_1, to, amount_1_out)?;
         }
         let contract = Self::env().account_id();
         let balance_0 = PSP22Ref::balance_of(&token_0, contract);
@@ -236,9 +268,11 @@ impl<
         } else {
             0
         };
-        if amount_0_in == 0 && amount_1_in == 0 {
-            return Err(PairError::InsufficientInputAmount)
-        }
+
+        ensure!(
+            amount_0_in > 0 || amount_1_in > 0,
+            PairError::InsufficientInputAmount
+        );
 
         let balance_0_adjusted = balance_0
             .checked_mul(1000)
@@ -252,13 +286,13 @@ impl<
             .ok_or(PairError::SubUnderFlow11)?;
 
         // Cast to U256 to prevent Overflow
-        if casted_mul(balance_0_adjusted, balance_1_adjusted)
-            < casted_mul(reserves.0, reserves.1)
-                .checked_mul(1000u128.pow(2).into())
-                .ok_or(PairError::MulOverFlow14)?
-        {
-            return Err(PairError::K)
-        }
+        ensure!(
+            casted_mul(balance_0_adjusted, balance_1_adjusted)
+                >= casted_mul(reserves.0, reserves.1)
+                    .checked_mul(1000u128.pow(2).into())
+                    .ok_or(PairError::MulOverFlow14)?,
+            PairError::K
+        );
 
         self._update(balance_0, balance_1, reserves.0, reserves.1)?;
 
@@ -282,14 +316,14 @@ impl<
         let token_1 = self.data::<data::Data>().token_1;
         let balance_0 = PSP22Ref::balance_of(&token_0, contract);
         let balance_1 = PSP22Ref::balance_of(&token_1, contract);
-        self._safe_transfer(
+        safe_transfer(
             token_0,
             to,
             balance_0
                 .checked_sub(reserve_0)
                 .ok_or(PairError::SubUnderFlow12)?,
         )?;
-        self._safe_transfer(
+        safe_transfer(
             token_1,
             to,
             balance_1
@@ -318,20 +352,43 @@ impl<
     default fn get_token_1(&self) -> AccountId {
         self.data::<data::Data>().token_1
     }
+}
 
-    default fn _safe_transfer(
-        &mut self,
-        token: AccountId,
-        to: AccountId,
-        value: Balance,
-    ) -> Result<(), PairError> {
-        PSP22Ref::transfer_builder(&token, to, value, Vec::<u8>::new())
-            .call_flags(CallFlags::default().set_allow_reentry(true))
-            .fire()
-            .unwrap()?;
-        Ok(())
+fn min(x: u128, y: u128) -> u128 {
+    if x < y {
+        return x
     }
+    y
+}
 
+#[inline]
+fn update_cumulative(
+    price_0_cumulative_last: WrappedU256,
+    price_1_cumulative_last: WrappedU256,
+    time_elapsed: U256,
+    reserve_0: Balance,
+    reserve_1: Balance,
+) -> (WrappedU256, WrappedU256) {
+    let price_cumulative_last_0: WrappedU256 = U256::from(
+        FixedU128::checked_from_rational(reserve_1, reserve_0)
+            .unwrap_or_default()
+            .into_inner(),
+    )
+    .saturating_mul(time_elapsed)
+    .saturating_add(price_0_cumulative_last.into())
+    .into();
+    let price_cumulative_last_1: WrappedU256 = U256::from(
+        FixedU128::checked_from_rational(reserve_0, reserve_1)
+            .unwrap_or_default()
+            .into_inner(),
+    )
+    .saturating_mul(time_elapsed)
+    .saturating_add(price_1_cumulative_last.into())
+    .into();
+    (price_cumulative_last_0, price_cumulative_last_1)
+}
+
+impl<T: Storage<data::Data> + Storage<psp22::Data>> Internal for T {
     default fn _mint_fee(
         &mut self,
         reserve_0: Balance,
@@ -385,9 +442,10 @@ impl<
         reserve_0: Balance,
         reserve_1: Balance,
     ) -> Result<(), PairError> {
-        if balance_0 == u128::MAX || balance_1 == u128::MAX {
-            return Err(PairError::Overflow)
-        }
+        ensure!(
+            balance_0 <= u128::MAX && balance_1 <= u128::MAX,
+            PairError::Overflow
+        );
         let now = Self::env().block_timestamp();
         let last_timestamp = self.data::<data::Data>().block_timestamp_last;
         if now != last_timestamp {
@@ -430,40 +488,6 @@ impl<
     ) {
     }
     default fn _emit_sync_event(&self, _reserve_0: Balance, _reserve_1: Balance) {}
-}
-
-fn min(x: u128, y: u128) -> u128 {
-    if x < y {
-        return x
-    }
-    y
-}
-
-#[inline]
-fn update_cumulative(
-    price_0_cumulative_last: WrappedU256,
-    price_1_cumulative_last: WrappedU256,
-    time_elapsed: U256,
-    reserve_0: Balance,
-    reserve_1: Balance,
-) -> (WrappedU256, WrappedU256) {
-    let price_cumulative_last_0: WrappedU256 = U256::from(
-        FixedU128::checked_from_rational(reserve_1, reserve_0)
-            .unwrap_or_default()
-            .into_inner(),
-    )
-    .saturating_mul(time_elapsed)
-    .saturating_add(price_0_cumulative_last.into())
-    .into();
-    let price_cumulative_last_1: WrappedU256 = U256::from(
-        FixedU128::checked_from_rational(reserve_0, reserve_1)
-            .unwrap_or_default()
-            .into_inner(),
-    )
-    .saturating_mul(time_elapsed)
-    .saturating_add(price_1_cumulative_last.into())
-    .into();
-    (price_cumulative_last_0, price_cumulative_last_1)
 }
 
 #[cfg(test)]

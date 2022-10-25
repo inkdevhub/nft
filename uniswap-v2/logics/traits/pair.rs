@@ -58,42 +58,6 @@ pub trait Pair {
 
     #[ink(message)]
     fn get_token_1(&self) -> AccountId;
-
-    fn _safe_transfer(
-        &mut self,
-        token: AccountId,
-        to: AccountId,
-        value: Balance,
-    ) -> Result<(), PairError>;
-
-    fn _mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError>;
-
-    fn _update(
-        &mut self,
-        balance_0: Balance,
-        balance_1: Balance,
-        reserve_0: Balance,
-        reserve_1: Balance,
-    ) -> Result<(), PairError>;
-
-    fn _emit_mint_event(&self, _sender: AccountId, _amount_0: Balance, _amount_1: Balance);
-    fn _emit_burn_event(
-        &self,
-        _sender: AccountId,
-        _amount_0: Balance,
-        _amount_1: Balance,
-        _to: AccountId,
-    );
-    fn _emit_swap_event(
-        &self,
-        _sender: AccountId,
-        _amount_0_in: Balance,
-        _amount_1_in: Balance,
-        _amount_0_out: Balance,
-        _amount_1_out: Balance,
-        _to: AccountId,
-    );
-    fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance);
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
