@@ -35,8 +35,7 @@ pub mod factory {
         factory: data::Data,
     }
 
-    impl Factory for FactoryContract {
-    }
+    impl Factory for FactoryContract {}
 
     impl factory::Internal for FactoryContract {
         fn _instantiate_pair(&mut self, salt_bytes: &[u8]) -> AccountId {

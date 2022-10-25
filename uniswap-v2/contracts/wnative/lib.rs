@@ -9,11 +9,11 @@ pub mod wnative {
     };
     use ink_prelude::string::String;
     use ink_storage::traits::SpreadAllocate;
-    use uniswap_v2::impls::wnative::*;
     use openbrush::{
         contracts::psp22::extensions::metadata::*,
         traits::Storage,
     };
+    use uniswap_v2::impls::wnative::*;
 
     #[ink(event)]
     pub struct Transfer {
