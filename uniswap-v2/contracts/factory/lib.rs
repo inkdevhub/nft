@@ -11,10 +11,7 @@ pub mod factory {
         ToAccountId,
     };
     use ink_storage::traits::SpreadAllocate;
-    use openbrush::traits::{
-        Storage,
-        ZERO_ADDRESS,
-    };
+    use openbrush::traits::Storage;
     use pair_contract::pair::PairContractRef;
     use uniswap_v2::{
         impls::factory::*,
@@ -39,6 +36,9 @@ pub mod factory {
     }
 
     impl Factory for FactoryContract {
+    }
+
+    impl factory::Internal for FactoryContract {
         fn _instantiate_pair(&mut self, salt_bytes: &[u8]) -> AccountId {
             let pair_hash = self.factory.pair_contract_code_hash;
             let pair = PairContractRef::new()
@@ -49,9 +49,7 @@ pub mod factory {
                 .unwrap();
             pair.to_account_id()
         }
-    }
 
-    impl Internal for FactoryContract {
         fn _emit_create_pair_event(
             &self,
             token_0: AccountId,
@@ -77,8 +75,24 @@ pub mod factory {
             ink_lang::codegen::initialize_contract(|instance: &mut Self| {
                 instance.factory.pair_contract_code_hash = pair_code_hash;
                 instance.factory.fee_to_setter = fee_to_setter;
-                instance.factory.fee_to = ZERO_ADDRESS.into();
             })
+        }
+    }
+    #[cfg(test)]
+    mod tests {
+        use ink_env::{
+            test::default_accounts,
+            Hash,
+        };
+        use openbrush::traits::AccountIdExt;
+
+        use super::*;
+
+        #[ink_lang::test]
+        fn initialize_works() {
+            let accounts = default_accounts::<ink_env::DefaultEnvironment>();
+            let factory = FactoryContract::new(accounts.alice, Hash::default());
+            assert!(factory.factory.fee_to.is_zero());
         }
     }
 }

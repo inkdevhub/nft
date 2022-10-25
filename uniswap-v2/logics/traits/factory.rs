@@ -1,4 +1,5 @@
 use crate::traits::pair::PairError;
+use ink_env::Hash;
 use openbrush::traits::AccountId;
 
 #[openbrush::wrapper]
@@ -7,7 +8,13 @@ pub type FactoryRef = dyn Factory;
 #[openbrush::trait_definition]
 pub trait Factory {
     #[ink(message)]
-    fn all_pair_length(&self) -> u64;
+    fn all_pairs(&self, pid: u64) -> Option<AccountId>;
+
+    #[ink(message)]
+    fn all_pairs_length(&self) -> u64;
+
+    #[ink(message)]
+    fn pair_contract_code_hash(&self) -> Hash;
 
     #[ink(message)]
     fn create_pair(
@@ -15,8 +22,6 @@ pub trait Factory {
         token_a: AccountId,
         token_b: AccountId,
     ) -> Result<AccountId, FactoryError>;
-
-    fn _instantiate_pair(&mut self, salt_bytes: &[u8]) -> AccountId;
 
     #[ink(message)]
     fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError>;
@@ -34,17 +39,6 @@ pub trait Factory {
     fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId>;
 }
 
-#[openbrush::trait_definition]
-pub trait Internal {
-    fn _emit_create_pair_event(
-        &self,
-        _token_0: AccountId,
-        _token_1: AccountId,
-        _pair: AccountId,
-        _pair_len: u64,
-    );
-}
-
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FactoryError {
@@ -52,6 +46,7 @@ pub enum FactoryError {
     CallerIsNotFeeSetter,
     ZeroAddress,
     IdenticalAddresses,
+    PairExists,
 }
 
 impl From<PairError> for FactoryError {

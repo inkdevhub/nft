@@ -1,16 +1,20 @@
 use crate::traits::pair::PairRef;
 pub use crate::{
+    ensure,
     impls::factory::*,
     traits::factory::*,
 };
-use ink_env::hash::Blake2x256;
+use ink_env::{
+    hash::Blake2x256,
+    Hash,
+};
 use openbrush::{
     modifier_definition,
     modifiers,
     traits::{
         AccountId,
+        AccountIdExt,
         Storage,
-        ZERO_ADDRESS,
     },
 };
 
@@ -19,8 +23,19 @@ where
     T: Internal,
     T: Storage<data::Data>,
 {
-    default fn all_pair_length(&self) -> u64 {
+    default fn all_pairs(&self, pid: u64) -> Option<AccountId> {
+        self.data::<data::Data>()
+            .all_pairs
+            .get(pid as usize)
+            .cloned()
+    }
+
+    default fn all_pairs_length(&self) -> u64 {
         self.data::<data::Data>().all_pairs.len() as u64
+    }
+
+    default fn pair_contract_code_hash(&self) -> Hash {
+        self.data::<data::Data>().pair_contract_code_hash
     }
 
     default fn create_pair(
@@ -28,17 +43,20 @@ where
         token_a: AccountId,
         token_b: AccountId,
     ) -> Result<AccountId, FactoryError> {
-        if token_a == token_b {
-            return Err(FactoryError::IdenticalAddresses)
-        }
+        ensure!(token_a != token_b, FactoryError::IdenticalAddresses);
         let token_pair = if token_a < token_b {
             (token_a, token_b)
         } else {
             (token_b, token_a)
         };
-        if token_pair.0 == ZERO_ADDRESS.into() {
-            return Err(FactoryError::ZeroAddress)
-        }
+        ensure!(!token_pair.0.is_zero(), FactoryError::ZeroAddress);
+        ensure!(
+            self.data::<data::Data>()
+                .get_pair
+                .get(&token_pair)
+                .is_none(),
+            FactoryError::PairExists
+        );
 
         let salt = Self::env().hash_encoded::<Blake2x256, _>(&token_pair);
         let pair_contract = self._instantiate_pair(salt.as_ref());
@@ -57,15 +75,10 @@ where
             token_pair.0,
             token_pair.1,
             pair_contract,
-            self.all_pair_length(),
+            self.all_pairs_length(),
         );
 
         Ok(pair_contract)
-    }
-
-    default fn _instantiate_pair(&mut self, _salt_bytes: &[u8]) -> AccountId {
-        // need to be overridden in contract
-        unimplemented!()
     }
 
     #[modifiers(only_fee_setter)]
@@ -93,15 +106,16 @@ where
     }
 }
 
-impl<T: Storage<data::Data>> Internal for T {
-    default fn _emit_create_pair_event(
+pub trait Internal {
+    fn _emit_create_pair_event(
         &self,
         _token_0: AccountId,
         _token_1: AccountId,
         _pair: AccountId,
         _pair_len: u64,
-    ) {
-    }
+    );
+
+    fn _instantiate_pair(&mut self, salt_bytes: &[u8]) -> AccountId;
 }
 
 #[modifier_definition]
