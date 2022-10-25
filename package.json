@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@polkadot/types": "^9.2.4",
     "@babel/core": "^7.7.4",
     "@babel/plugin-transform-runtime": "^7.14.2",
     "@babel/preset-env": "^7.7.4",
@@ -23,14 +22,26 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^5.1.0",
     "redspot": "^0.13.6",
-    "ts-node": "^10.8.0"
+    "ts-node": "^10.8.0",
+    "@supercolony/typechain-compiler": "0.1.10",
+    "@supercolony/typechain-polkadot": "0.4.7",
+    "@supercolony/typechain-types": "0.0.10",
+    "patch-package": "^6.4.7"
   },
   "scripts": {
     "build:release": "npx redspot compile --release",
     "build": "npx redspot compile",
+    "compile": "typechain-compiler",
+    "compile:release": "typechain-compiler --release",
+    "test:typechain": "mocha --require ts-node/register --recursive ./tests --extension \".spec.ts\" --exit --timeout 20000",
     "test:redspot": "npx redspot test",
     "test:mocha": "mocha --require @babel/register --require ts-node/register --recursive ./tests --extension \".ts\" --exit --timeout 20000",
     "test:mocha-single": "mocha --require @babel/register --require ts-node/register --extension \".ts\" --exit --timeout 20000",
-    "test": "yarn build:release && yarn test:mocha"
+    "test": "yarn build:release && yarn test:mocha",
+    "postinstall": "patch-package"
+  },
+  "resolutions": {
+    "@polkadot/api": "^8.6.2",
+    "@polkadot/api-contract": "^8.6.2"
   }
 }
