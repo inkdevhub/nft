@@ -1,15 +1,30 @@
-use crate::traits::{
-    factory::FactoryRef,
-    pair::PairRef,
-};
-pub use crate::{
-    impls::router::*,
+use crate::{
+    ensure,
+    helpers::{
+        helper::{
+            get_amount_in,
+            get_amount_out,
+            get_amounts_in,
+            get_amounts_out,
+            get_reserves,
+            pair_for,
+            quote,
+            sort_tokens,
+        },
+        transfer_helper::{
+            safe_transfer,
+            safe_transfer_from,
+            safe_transfer_native,
+            unwrap,
+            wrap,
+        },
+    },
     traits::{
-        math::*,
-        router::*,
+        factory::FactoryRef,
+        pair::PairRef,
     },
 };
-use ink_env::hash::Blake2x256;
+use ink_env::CallFlags;
 use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::traits::psp22::PSP22Ref,
@@ -19,59 +34,40 @@ use openbrush::{
         AccountId,
         Balance,
         Storage,
-        ZERO_ADDRESS,
     },
 };
-use primitive_types::U256;
+
+pub use crate::{
+    impls::router::*,
+    traits::router::*,
+};
+
+pub trait Internal {
+    fn _add_liquidity(
+        &self,
+        token_a: AccountId,
+        token_b: AccountId,
+        amount_a_desired: Balance,
+        amount_b_desired: Balance,
+        amount_a_min: Balance,
+        amount_b_min: Balance,
+    ) -> Result<(Balance, Balance), RouterError>;
+
+    fn _swap(
+        &self,
+        amounts: &Vec<Balance>,
+        path: Vec<AccountId>,
+        to: AccountId,
+    ) -> Result<(), RouterError>;
+}
 
 impl<T: Storage<data::Data>> Router for T {
     default fn factory(&self) -> AccountId {
-        self.data::<data::Data>().factory
+        self.data().factory
     }
 
-    default fn quote(
-        &self,
-        amount_a: Balance,
-        reserve_a: Balance,
-        reserve_b: Balance,
-    ) -> Result<Balance, RouterError> {
-        self._quote(amount_a, reserve_a, reserve_b)
-    }
-
-    default fn get_amount_out(
-        &self,
-        amount_in: Balance,
-        reserve_in: Balance,
-        reserve_out: Balance,
-    ) -> Result<Balance, RouterError> {
-        self._get_amount_out(amount_in, reserve_in, reserve_out)
-    }
-
-    default fn get_amount_in(
-        &self,
-        amount_out: Balance,
-        reserve_in: Balance,
-        reserve_out: Balance,
-    ) -> Result<Balance, RouterError> {
-        self._get_amount_in(amount_out, reserve_in, reserve_out)
-    }
-
-    default fn get_amounts_out(
-        &self,
-        amount_in: Balance,
-        path: Vec<AccountId>,
-    ) -> Result<Vec<Balance>, RouterError> {
-        let factory = self.data::<data::Data>().factory;
-        self._get_amounts_out(factory, amount_in, &path)
-    }
-
-    default fn get_amounts_in(
-        &self,
-        amount_out: Balance,
-        path: Vec<AccountId>,
-    ) -> Result<Vec<Balance>, RouterError> {
-        let factory = self.data::<data::Data>().factory;
-        self._get_amounts_in(factory, amount_out, &path)
+    default fn wnative(&self) -> AccountId {
+        self.data().wnative
     }
 
     #[modifiers(ensure(deadline))]
@@ -95,27 +91,59 @@ impl<T: Storage<data::Data>> Router for T {
             amount_b_min,
         )?;
 
-        let factory = self.data::<data::Data>().factory;
-        let pair_contract = self._pair_for(factory, token_a, token_b)?;
+        let pair_contract = pair_for(
+            self.data().factory.clone().as_ref(),
+            self.data().pair_code_hash.as_ref(),
+            token_a,
+            token_b,
+        )?;
 
-        PSP22Ref::transfer_from(
-            &token_a,
-            Self::env().caller(),
-            pair_contract,
-            amount_a,
-            Vec::new(),
-        )?;
-        PSP22Ref::transfer_from(
-            &token_b,
-            Self::env().caller(),
-            pair_contract,
-            amount_b,
-            Vec::new(),
-        )?;
+        let caller = Self::env().caller();
+        safe_transfer_from(token_a, caller, pair_contract, amount_a)?;
+        safe_transfer_from(token_b, caller, pair_contract, amount_b)?;
 
         let liquidity = PairRef::mint(&pair_contract, to)?;
 
         Ok((amount_a, amount_b, liquidity))
+    }
+
+    #[modifiers(ensure(deadline))]
+    default fn add_liquidity_native(
+        &mut self,
+        token: AccountId,
+        amount_token_desired: Balance,
+        amount_token_min: Balance,
+        amount_native_min: Balance,
+        to: AccountId,
+        deadline: u64,
+    ) -> Result<(Balance, Balance, Balance), RouterError> {
+        let wnative = self.data().wnative;
+        let received_value = Self::env().transferred_value();
+        let caller = Self::env().caller();
+        let (amount, amount_native) = self._add_liquidity(
+            token,
+            wnative,
+            amount_token_desired,
+            received_value,
+            amount_token_min,
+            amount_native_min,
+        )?;
+        let pair_contract = pair_for(
+            self.data().factory.clone().as_ref(),
+            self.data().pair_code_hash.as_ref(),
+            token,
+            wnative,
+        )?;
+
+        safe_transfer_from(token, caller, pair_contract, amount)?;
+        wrap(&wnative, amount_native)?;
+        PSP22Ref::transfer(&wnative, pair_contract, amount_native, Vec::<u8>::new())?;
+        let liquidity = PairRef::mint(&pair_contract, to)?;
+
+        if received_value > amount_native {
+            safe_transfer_native(caller, received_value - amount_native)?
+        }
+        Ok((amount, amount_native, liquidity))
     }
 
     #[modifiers(ensure(deadline))]
@@ -129,33 +157,61 @@ impl<T: Storage<data::Data>> Router for T {
         to: AccountId,
         deadline: u64,
     ) -> Result<(Balance, Balance), RouterError> {
-        let factory = self.data::<data::Data>().factory;
-        let pair_contract = self._pair_for(factory, token_a, token_b)?;
+        let pair_contract = pair_for(
+            self.data().factory.clone().as_ref(),
+            self.data().pair_code_hash.as_ref(),
+            token_a,
+            token_b,
+        )?;
 
-        PSP22Ref::transfer_from(
-            &pair_contract,
+        safe_transfer_from(
+            pair_contract,
             Self::env().caller(),
             pair_contract,
             liquidity,
-            Vec::new(),
         )?;
 
-        let (amount_0, amount_1) = PairRef::burn(&pair_contract, to)?;
-        let (token_0, _) = self._sort_tokens(token_a, token_b)?;
+        let (amount_0, amount_1) = PairRef::burn_builder(&pair_contract, to)
+            .call_flags(CallFlags::default().set_allow_reentry(true))
+            .fire()
+            .unwrap()?;
+        let (token_0, _) = sort_tokens(token_a, token_b)?;
         let (amount_a, amount_b) = if token_a == token_0 {
             (amount_0, amount_1)
         } else {
             (amount_1, amount_0)
         };
 
-        if amount_a < amount_a_min {
-            return Err(RouterError::InsufficientAAmount)
-        }
-        if amount_b < amount_b_min {
-            return Err(RouterError::InsufficientBAmount)
-        }
+        ensure!(amount_a >= amount_a_min, RouterError::InsufficientAAmount);
+        ensure!(amount_b >= amount_b_min, RouterError::InsufficientBAmount);
 
         Ok((amount_a, amount_b))
+    }
+
+    #[modifiers(ensure(deadline))]
+    default fn remove_liquidity_native(
+        &mut self,
+        token: AccountId,
+        liquidity: Balance,
+        amount_token_min: Balance,
+        amount_native_min: Balance,
+        to: AccountId,
+        deadline: u64,
+    ) -> Result<(Balance, Balance), RouterError> {
+        let wnative = self.data().wnative;
+        let (amount_token, amount_native) = self.remove_liquidity(
+            token,
+            wnative,
+            liquidity,
+            amount_token_min,
+            amount_native_min,
+            Self::env().account_id(),
+            deadline,
+        )?;
+        safe_transfer(token, to, amount_token)?;
+        unwrap(&wnative, amount_native)?;
+        safe_transfer_native(to, amount_native)?;
+        Ok((amount_token, amount_native))
     }
 
     #[modifiers(ensure(deadline))]
@@ -167,23 +223,23 @@ impl<T: Storage<data::Data>> Router for T {
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
-        let factory = self.data::<data::Data>().factory;
-        let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_in, &path)?;
-        if amounts[amounts.len() - 1] < amount_out_min {
-            return Err(RouterError::InsufficientOutputAmount)
-        }
+        let factory = self.data().factory;
+        let pair_hash = self.data().pair_code_hash;
+        let factory_ref = factory.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
 
-        let pair_contract = self._pair_for(factory, path[0], path[1])?;
-        PSP22Ref::transfer_from(
-            &path[0],
+        let amounts = get_amounts_out(factory_ref, pair_hash_ref, amount_in, &path)?;
+        ensure!(
+            amounts[amounts.len() - 1] >= amount_out_min,
+            RouterError::InsufficientOutputAmount
+        );
+        safe_transfer_from(
+            path[0],
             Self::env().caller(),
-            pair_contract,
+            pair_for(factory_ref, pair_hash_ref, path[0], path[1])?,
             amounts[0],
-            Vec::new(),
         )?;
-
         self._swap(&amounts, path, to)?;
-
         Ok(amounts)
     }
 
@@ -196,156 +252,214 @@ impl<T: Storage<data::Data>> Router for T {
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
-        let factory = self.data::<data::Data>().factory;
-        let amounts: Vec<Balance> = self._get_amounts_out(factory, amount_out, &path)?;
-        if amount_in_max < amounts[0] {
-            return Err(RouterError::ExcessiveInputAmount)
-        }
+        let factory = self.data().factory;
+        let pair_hash = self.data().pair_code_hash;
+        let factory_ref = factory.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
 
-        let pair_contract = self._pair_for(factory, path[0], path[1])?;
-        PSP22Ref::transfer_from(
-            &path[0],
+        let amounts = get_amounts_in(factory_ref, pair_hash_ref, amount_out, &path)?;
+        ensure!(
+            amounts[0] <= amount_in_max,
+            RouterError::ExcessiveInputAmount
+        );
+        safe_transfer_from(
+            path[0],
             Self::env().caller(),
-            pair_contract,
+            pair_for(factory_ref, pair_hash_ref, path[0], path[1])?,
             amounts[0],
-            Vec::new(),
         )?;
-
         self._swap(&amounts, path, to)?;
-
         Ok(amounts)
     }
 
-    default fn _quote(
+    #[modifiers(ensure(deadline))]
+    default fn swap_exact_native_for_tokens(
+        &mut self,
+        amount_out_min: Balance,
+        path: Vec<AccountId>,
+        to: AccountId,
+        deadline: u64,
+    ) -> Result<Vec<Balance>, RouterError> {
+        let factory = self.data().factory;
+        let pair_hash = self.data().pair_code_hash;
+        let factory_ref = factory.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
+
+        let received_value = Self::env().transferred_value();
+        let wnative = self.data().wnative;
+        ensure!(path[0] == wnative, RouterError::InvalidPath);
+        let amounts = get_amounts_out(factory_ref, pair_hash_ref, received_value, &path)?;
+        ensure!(
+            amounts[amounts.len() - 1] >= amount_out_min,
+            RouterError::InsufficientOutputAmount
+        );
+        wrap(&wnative, received_value)?;
+        safe_transfer(
+            wnative,
+            pair_for(factory_ref, pair_hash_ref, path[0], path[1])?,
+            amounts[0],
+        )?;
+        self._swap(&amounts, path, to)?;
+        Ok(amounts)
+    }
+
+    #[modifiers(ensure(deadline))]
+    default fn swap_tokens_for_exact_native(
+        &mut self,
+        amount_out: Balance,
+        amount_in_max: Balance,
+        path: Vec<AccountId>,
+        to: AccountId,
+        deadline: u64,
+    ) -> Result<Vec<Balance>, RouterError> {
+        let factory = self.data().factory;
+        let pair_hash = self.data().pair_code_hash;
+        let factory_ref = factory.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
+
+        let wnative = self.data().wnative;
+        ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
+        let amounts = get_amounts_in(factory_ref, pair_hash_ref, amount_out, &path)?;
+        ensure!(
+            amounts[0] <= amount_in_max,
+            RouterError::ExcessiveInputAmount
+        );
+        safe_transfer_from(
+            path[0],
+            Self::env().caller(),
+            pair_for(factory_ref, pair_hash_ref, path[0], path[1])?,
+            amounts[0],
+        )?;
+        self._swap(&amounts, path, Self::env().account_id())?;
+        unwrap(&wnative, amounts[amounts.len() - 1])?;
+        safe_transfer_native(to, amounts[amounts.len() - 1])?;
+        Ok(amounts)
+    }
+
+    #[modifiers(ensure(deadline))]
+    fn swap_exact_tokens_for_native(
+        &mut self,
+        amount_in: Balance,
+        amount_out_min: Balance,
+        path: Vec<AccountId>,
+        to: AccountId,
+        deadline: u64,
+    ) -> Result<Vec<Balance>, RouterError> {
+        let factory = self.data().factory;
+        let pair_hash = self.data().pair_code_hash;
+        let factory_ref = factory.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
+
+        let wnative = self.data().wnative;
+        ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
+        let amounts = get_amounts_out(factory_ref, pair_hash_ref, amount_in, &path)?;
+        ensure!(
+            amounts[amounts.len() - 1] >= amount_out_min,
+            RouterError::InsufficientOutputAmount
+        );
+        safe_transfer_from(
+            path[0],
+            Self::env().caller(),
+            pair_for(factory_ref, pair_hash_ref, path[0], path[1])?,
+            amounts[0],
+        )?;
+        self._swap(&amounts, path, Self::env().account_id())?;
+        unwrap(&wnative, amounts[amounts.len() - 1])?;
+        safe_transfer_native(to, amounts[amounts.len() - 1])?;
+        Ok(amounts)
+    }
+
+    #[modifiers(ensure(deadline))]
+    fn swap_native_for_exact_tokens(
+        &mut self,
+        amount_out: Balance,
+        path: Vec<AccountId>,
+        to: AccountId,
+        deadline: u64,
+    ) -> Result<Vec<Balance>, RouterError> {
+        let factory = self.data().factory;
+        let pair_hash = self.data().pair_code_hash;
+        let factory_ref = factory.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
+
+        let wnative = self.data().wnative;
+        let received_value = Self::env().transferred_value();
+
+        ensure!(path[0] == wnative, RouterError::InvalidPath);
+        let amounts = get_amounts_in(factory_ref, pair_hash_ref, amount_out, &path)?;
+        ensure!(
+            amounts[0] <= received_value,
+            RouterError::ExcessiveInputAmount
+        );
+        wrap(&wnative, amounts[0])?;
+        safe_transfer(
+            wnative,
+            pair_for(factory_ref, pair_hash_ref, path[0], path[1])?,
+            amounts[0],
+        )?;
+        self._swap(&amounts, path, to)?;
+        if received_value > amounts[0] {
+            safe_transfer_native(Self::env().caller(), received_value - amounts[0])?
+        }
+        Ok(amounts)
+    }
+
+    default fn quote(
         &self,
         amount_a: Balance,
         reserve_a: Balance,
         reserve_b: Balance,
     ) -> Result<Balance, RouterError> {
-        if amount_a <= 0 {
-            return Err(RouterError::InsufficientAmount)
-        }
-        if reserve_a <= 0 || reserve_b <= 0 {
-            return Err(RouterError::InsufficientLiquidity)
-        }
-
-        let amount_b: Balance = casted_mul(amount_a, reserve_b)
-            .checked_div(U256::from(reserve_a))
-            .ok_or(RouterError::DivByZero1)?
-            .try_into()
-            .map_err(|_| RouterError::CastOverflow1)?;
-
-        Ok(amount_b)
+        Ok(quote(amount_a, reserve_a, reserve_b)?)
     }
 
-    default fn _get_amount_out(
+    default fn get_amount_out(
         &self,
         amount_in: Balance,
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
-        if amount_in <= 0 {
-            return Err(RouterError::InsufficientAmount)
-        }
-        if reserve_in <= 0 || reserve_out <= 0 {
-            return Err(RouterError::InsufficientLiquidity)
-        }
-
-        let amount_in_with_fee = casted_mul(amount_in, 997);
-
-        let numerator = amount_in_with_fee
-            .checked_mul(U256::from(reserve_out))
-            .ok_or(RouterError::MulOverFlow1)?;
-
-        let denominator = casted_mul(reserve_in, 1000)
-            .checked_add(amount_in_with_fee)
-            .ok_or(RouterError::AddOverFlow1)?;
-
-        let amount_out: Balance = numerator
-            .checked_div(denominator)
-            .ok_or(RouterError::DivByZero2)?
-            .try_into()
-            .map_err(|_| RouterError::CastOverflow2)?;
-
-        Ok(amount_out)
+        Ok(get_amount_out(amount_in, reserve_in, reserve_out)?)
     }
 
-    default fn _get_amounts_out(
-        &self,
-        factory: AccountId,
-        amount_in: Balance,
-        path: &Vec<AccountId>,
-    ) -> Result<Vec<Balance>, RouterError> {
-        if path.len() < 2 {
-            return Err(RouterError::InvalidPath)
-        }
-
-        let mut amounts = Vec::with_capacity(path.len());
-        amounts.push(amount_in);
-        for i in 0..path.len() - 1 {
-            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
-            amounts.push(self.get_amount_out(amounts[i], reserve_in, reserve_out)?);
-        }
-
-        Ok(amounts)
-    }
-
-    default fn _get_amounts_in(
-        &self,
-        factory: AccountId,
-        amount_out: Balance,
-        path: &Vec<AccountId>,
-    ) -> Result<Vec<Balance>, RouterError> {
-        if path.len() < 2 {
-            return Err(RouterError::InvalidPath)
-        }
-
-        let mut amounts = Vec::with_capacity(path.len());
-        amounts[path.len() - 1] = amount_out;
-        for i in (0..path.len() - 1).rev() {
-            let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
-            amounts[i] = self.get_amount_in(amounts[i + 1], reserve_in, reserve_out)?;
-        }
-
-        Ok(amounts)
-    }
-
-    default fn _get_amount_in(
+    default fn get_amount_in(
         &self,
         amount_out: Balance,
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
-        if amount_out <= 0 {
-            return Err(RouterError::InsufficientAmount)
-        }
-        if reserve_in <= 0 || reserve_out <= 0 {
-            return Err(RouterError::InsufficientLiquidity)
-        }
-
-        let numerator = casted_mul(reserve_in, amount_out)
-            .checked_mul(1000.into())
-            .ok_or(RouterError::MulOverFlow2)?;
-
-        let denominator = casted_mul(
-            reserve_out
-                .checked_sub(amount_out)
-                .ok_or(RouterError::SubUnderFlow1)?,
-            997,
-        );
-
-        let amount_in: Balance = numerator
-            .checked_div(denominator)
-            .ok_or(RouterError::DivByZero3)?
-            .checked_add(1.into())
-            .ok_or(RouterError::AddOverFlow2)?
-            .try_into()
-            .map_err(|_| RouterError::CastOverflow3)?;
-
-        Ok(amount_in)
+        Ok(get_amount_in(amount_out, reserve_in, reserve_out)?)
     }
 
-    default fn _add_liquidity(
+    default fn get_amounts_out(
+        &self,
+        amount_in: Balance,
+        path: Vec<AccountId>,
+    ) -> Result<Vec<Balance>, RouterError> {
+        Ok(get_amounts_out(
+            self.data().factory.as_ref(),
+            self.data().pair_code_hash.as_ref(),
+            amount_in,
+            &path,
+        )?)
+    }
+
+    default fn get_amounts_in(
+        &self,
+        amount_out: Balance,
+        path: Vec<AccountId>,
+    ) -> Result<Vec<Balance>, RouterError> {
+        Ok(get_amounts_in(
+            self.data().factory.as_ref(),
+            self.data().pair_code_hash.as_ref(),
+            amount_out,
+            &path,
+        )?)
+    }
+}
+
+impl<T: Storage<data::Data>> Internal for T {
+    fn _add_liquidity(
         &self,
         token_a: AccountId,
         token_b: AccountId,
@@ -354,133 +468,72 @@ impl<T: Storage<data::Data>> Router for T {
         amount_a_min: Balance,
         amount_b_min: Balance,
     ) -> Result<(Balance, Balance), RouterError> {
-        let factory = self.data::<data::Data>().factory;
-        if FactoryRef::get_pair(&factory, token_a, token_b).is_none() {
-            FactoryRef::create_pair(&factory, token_a, token_b)?;
+        if FactoryRef::get_pair(&self.data().factory, token_a, token_b).is_none() {
+            FactoryRef::create_pair(&self.data().factory, token_a, token_b)?;
         };
 
-        let (reserve_a, reserve_b) =
-            self._get_reserves(self.data::<data::Data>().factory, token_a, token_b)?;
+        let (reserve_a, reserve_b) = get_reserves(
+            self.data().factory.as_ref(),
+            self.data().pair_code_hash.as_ref(),
+            token_a,
+            token_b,
+        )?;
         if reserve_a == 0 && reserve_b == 0 {
             return Ok((amount_a_desired, amount_b_desired))
         }
 
-        let amount_b_optimal = self._quote(amount_a_desired, reserve_a, reserve_b)?;
+        let amount_b_optimal = quote(amount_a_desired, reserve_a, reserve_b)?;
         if amount_b_optimal <= amount_b_desired {
-            if amount_b_optimal < amount_b_min {
-                return Err(RouterError::InsufficientBAmount)
-            }
-
+            ensure!(
+                amount_b_optimal >= amount_b_min,
+                RouterError::InsufficientBAmount
+            );
             Ok((amount_a_desired, amount_b_optimal))
         } else {
-            let amount_a_optimal = self._quote(amount_b_desired, reserve_b, reserve_a)?;
-            if amount_a_desired < amount_a_optimal {
-                return Err(RouterError::ExcessiveAAmount)
-            }
-            if amount_a_optimal < amount_a_min {
-                return Err(RouterError::InsufficientAAmount)
-            }
-
+            let amount_a_optimal = quote(amount_b_desired, reserve_b, reserve_a)?;
+            // amount_a_optimal <= amount_a_desired holds as amount_b_optimal > amount_b_desired
+            ensure!(
+                amount_a_optimal >= amount_a_min,
+                RouterError::InsufficientAAmount
+            );
             Ok((amount_a_optimal, amount_b_desired))
         }
     }
 
-    default fn _swap(
-        &mut self,
+    fn _swap(
+        &self,
         amounts: &Vec<Balance>,
         path: Vec<AccountId>,
-        to: AccountId,
+        _to: AccountId,
     ) -> Result<(), RouterError> {
-        let factory = self.data::<data::Data>().factory;
+        let factory_ref = self.data().factory.as_ref();
+        let pair_hash = self.data().pair_code_hash.as_ref();
 
         for i in 0..path.len() - 1 {
             let (input, output) = (path[i], path[i + 1]);
-            let (token_0, _) = self._sort_tokens(input, output)?;
-            let amount_out: Balance = amounts[i + 1];
-
+            let (token_0, _) = sort_tokens(input, output)?;
+            let amount_out = amounts[i + 1];
             let (amount_0_out, amount_1_out) = if input == token_0 {
                 (0, amount_out)
             } else {
                 (amount_out, 0)
             };
-
             let to = if i < path.len() - 2 {
-                self._pair_for(factory, output, path[i + 2])?
+                pair_for(factory_ref, pair_hash, output, path[i + 2])?
             } else {
-                to
+                _to
             };
-
-            PairRef::swap(
-                &self._pair_for(factory, input, output)?,
+            PairRef::swap_builder(
+                &pair_for(factory_ref, pair_hash, input, output)?,
                 amount_0_out,
                 amount_1_out,
                 to,
-            )?;
+            )
+            .call_flags(CallFlags::default().set_allow_reentry(true))
+            .fire()
+            .unwrap()?
         }
-
         Ok(())
-    }
-
-    /// Original Uniswap Library pairFor function calculate pair contract address without making cross contract calls.
-    /// Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
-    ///
-    /// In this contract, use precomputed address like Uniswap's, as ink!'s deployment is done via create2-like one by default.
-    /// Please refer https://github.com/paritytech/substrate/blob/493b58bd4a475080d428ce47193ee9ea9757a808/frame/contracts/src/lib.rs#L178
-    /// for how contract's address is calculated.
-    default fn _pair_for(
-        &self,
-        factory: AccountId,
-        token_a: AccountId,
-        token_b: AccountId,
-    ) -> Result<AccountId, RouterError> {
-        let tokens = self._sort_tokens(token_a, token_b)?;
-        let salt = &Self::env().hash_encoded::<Blake2x256, _>(&tokens)[..4];
-        let input: Vec<_> = AsRef::<[u8]>::as_ref(&factory)
-            .iter()
-            .chain(self.data().pair_code_hash.as_ref())
-            .chain(salt)
-            .cloned()
-            .collect();
-        Ok(Self::env().hash_bytes::<Blake2x256>(&input).into())
-    }
-
-    default fn _sort_tokens(
-        &self,
-        token_a: AccountId,
-        token_b: AccountId,
-    ) -> Result<(AccountId, AccountId), RouterError> {
-        if token_a == token_b {
-            return Err(RouterError::IdenticalAddresses)
-        }
-
-        let (token_0, token_1) = if token_a < token_b {
-            (token_a, token_b)
-        } else {
-            (token_b, token_a)
-        };
-
-        if token_0 == ZERO_ADDRESS.into() {
-            return Err(RouterError::ZeroAddress)
-        }
-
-        Ok((token_0, token_1))
-    }
-
-    default fn _get_reserves(
-        &self,
-        factory: AccountId,
-        token_a: AccountId,
-        token_b: AccountId,
-    ) -> Result<(Balance, Balance), RouterError> {
-        let (token_0, _) = self._sort_tokens(token_a, token_b)?;
-        let pair_contract = self._pair_for(factory, token_a, token_b)?;
-        let (reserve_0, reserve_1, _) = PairRef::get_reserves(&pair_contract);
-
-        if token_a == token_0 {
-            Ok((reserve_0, reserve_1))
-        } else {
-            Ok((reserve_1, reserve_0))
-        }
     }
 }
 
@@ -491,8 +544,6 @@ where
     F: FnOnce(&mut T) -> Result<R, E>,
     E: From<RouterError>,
 {
-    if deadline <= T::env().block_timestamp() {
-        return Err(From::from(RouterError::Expired))
-    }
+    ensure!(deadline >= T::env().block_timestamp(), RouterError::Expired);
     body(instance)
 }
