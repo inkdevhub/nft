@@ -24,14 +24,21 @@ The UI is a react app and uses polkadotjs to interact with the node
 On Chain governance based on [Governor](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/governance) contracts of OpenZeppelin
 
 #### Tests
-The test folder contains integration tests for the contracts.
+The test folder contains integration tests for the contracts. Tests are made with two different test frameworks, redspot and typechain.
 
 **Runs the tests**
 1. Run a local node \
    Last version of polkadot *v0.9.29* introduced WeightV2 and is not compatible with redspot \
    Please use [swanky-node v0.11](https://github.com/AstarNetwork/swanky-node/releases/tag/v0.11.0) 
-2. The end-to-end test uses redspot as testing environment. Node version should be 14
-```bash
-yarn install
-npx redspot test
-```
+2. The end-to-end test uses redspot or typchain as a testing environment. Node version should be 14
+   - Run redspot tests
+     ```bash
+     yarn install
+     yarn test:redspot
+     ```
+   - Run typechain tests
+     ```bash
+     yarn install
+     yarn compile
+     yarn test:typechain
+     ```
