@@ -1,4 +1,7 @@
-use crate::traits::pair::PairRef;
+use crate::{
+    helpers::math::casted_mul,
+    traits::pair::PairRef,
+};
 use ink_env::hash::{
     Blake2x256,
     HashOutput,
@@ -9,8 +12,6 @@ use openbrush::traits::{
     AccountIdExt,
     Balance,
 };
-
-use super::math::casted_mul;
 
 /// Evaluate `$x:expr` and if not true return `Err($y:expr)`.
 ///
@@ -61,6 +62,12 @@ pub fn pair_for(
     Ok(output.into())
 }
 
+/// Original Uniswap Library pairFor function calculate pair contract address without making cross contract calls.
+/// Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
+///
+/// In this contract, use precomputed address like Uniswap's, as ink!'s deployment is done via create2-like one by default.
+/// Please refer https://github.com/paritytech/substrate/blob/493b58bd4a475080d428ce47193ee9ea9757a808/frame/contracts/src/lib.rs#L178
+/// for how contract's address is calculated.
 pub fn get_reserves(
     factory: &[u8; 32],
     pair_code_hash: &[u8],
@@ -68,7 +75,6 @@ pub fn get_reserves(
     token_b: AccountId,
 ) -> Result<(Balance, Balance), HelperError> {
     let (token_0, _) = sort_tokens(token_a, token_b)?;
-    // get pair contract address from factory
     let pair_contract = pair_for(factory, pair_code_hash, token_a, token_b)?;
     let (reserve_0, reserve_1, _) = PairRef::get_reserves(&pair_contract);
 

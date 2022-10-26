@@ -1,7 +1,9 @@
 use super::{
     factory::FactoryError,
-    helper::HelperError,
     pair::PairError,
+};
+use crate::helpers::{
+    helper::HelperError,
     transfer_helper::TransferHelperError,
 };
 use ink_prelude::vec::Vec;

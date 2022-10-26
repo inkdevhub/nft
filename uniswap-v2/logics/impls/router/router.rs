@@ -1,7 +1,6 @@
 use crate::{
     ensure,
-    traits::{
-        factory::FactoryRef,
+    helpers::{
         helper::{
             get_amount_in,
             get_amount_out,
@@ -12,7 +11,6 @@ use crate::{
             quote,
             sort_tokens,
         },
-        pair::PairRef,
         transfer_helper::{
             safe_transfer,
             safe_transfer_from,
@@ -20,6 +18,10 @@ use crate::{
             unwrap,
             wrap,
         },
+    },
+    traits::{
+        factory::FactoryRef,
+        pair::PairRef,
     },
 };
 use ink_env::CallFlags;
@@ -222,9 +224,9 @@ impl<T: Storage<data::Data>> Router for T {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data().factory;
-        let pair_hash_ref = self.data().pair_code_hash;
+        let pair_hash = self.data().pair_code_hash;
         let factory_ref = factory.as_ref();
-        let pair_hash_ref = pair_hash_ref.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
 
         let amounts = get_amounts_out(factory_ref, pair_hash_ref, amount_in, &path)?;
         ensure!(
@@ -251,9 +253,9 @@ impl<T: Storage<data::Data>> Router for T {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data().factory;
-        let pair_hash_ref = self.data().pair_code_hash;
+        let pair_hash = self.data().pair_code_hash;
         let factory_ref = factory.as_ref();
-        let pair_hash_ref = pair_hash_ref.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
 
         let amounts = get_amounts_in(factory_ref, pair_hash_ref, amount_out, &path)?;
         ensure!(
@@ -279,9 +281,9 @@ impl<T: Storage<data::Data>> Router for T {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data().factory;
-        let pair_hash_ref = self.data().pair_code_hash;
+        let pair_hash = self.data().pair_code_hash;
         let factory_ref = factory.as_ref();
-        let pair_hash_ref = pair_hash_ref.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
 
         let received_value = Self::env().transferred_value();
         let wnative = self.data().wnative;
@@ -311,9 +313,9 @@ impl<T: Storage<data::Data>> Router for T {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data().factory;
-        let pair_hash_ref = self.data().pair_code_hash;
+        let pair_hash = self.data().pair_code_hash;
         let factory_ref = factory.as_ref();
-        let pair_hash_ref = pair_hash_ref.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
 
         let wnative = self.data().wnative;
         ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
@@ -344,9 +346,9 @@ impl<T: Storage<data::Data>> Router for T {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data().factory;
-        let pair_hash_ref = self.data().pair_code_hash;
+        let pair_hash = self.data().pair_code_hash;
         let factory_ref = factory.as_ref();
-        let pair_hash_ref = pair_hash_ref.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
 
         let wnative = self.data().wnative;
         ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
@@ -376,9 +378,9 @@ impl<T: Storage<data::Data>> Router for T {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data().factory;
-        let pair_hash_ref = self.data().pair_code_hash;
+        let pair_hash = self.data().pair_code_hash;
         let factory_ref = factory.as_ref();
-        let pair_hash_ref = pair_hash_ref.as_ref();
+        let pair_hash_ref = pair_hash.as_ref();
 
         let wnative = self.data().wnative;
         let received_value = Self::env().transferred_value();
@@ -489,7 +491,7 @@ impl<T: Storage<data::Data>> Internal for T {
             Ok((amount_a_desired, amount_b_optimal))
         } else {
             let amount_a_optimal = quote(amount_b_desired, reserve_b, reserve_a)?;
-            assert!(amount_a_optimal <= amount_a_desired);
+            // amount_a_optimal <= amount_a_desired holds as amount_b_optimal > amount_b_desired
             ensure!(
                 amount_a_optimal >= amount_a_min,
                 RouterError::InsufficientAAmount
