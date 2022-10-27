@@ -1,5 +1,5 @@
 [package]
-name = "w_native_token"
+name = "wnative_contract"
 version = "0.1.0"
 authors = ["Stake Technologies <devops@stake.co.jp>"]
 edition = "2021"
@@ -11,15 +11,15 @@ ink_env = { version = "~3.3.0", default-features = false }
 ink_storage = { version = "~3.3.0", default-features = false }
 ink_lang = { version = "~3.3.0", default-features = false }
 ink_prelude = { version = "~3.3.0", default-features = false }
-ink_engine = { version = "~3.3.0", default-features = false, optional = true }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 openbrush = { version = "2.2.0", default-features = false, features = ["psp22"] }
+uniswap_v2 = { path = "../../logics", default-features = false }
 
 [lib]
-name = "w_native_token"
+name = "wnative_contract"
 path = "lib.rs"
 crate-type = ["cdylib"]
 
@@ -35,8 +35,13 @@ std = [
     "scale/std",
     "scale-info",
     "scale-info/std",
-
-    # Brush dependency
     "openbrush/std",
+    "uniswap_v2/std"
 ]
 ink-as-dependency = []
+
+[profile.dev]
+overflow-checks = false
+
+[profile.release]
+overflow-checks = false
