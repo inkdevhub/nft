@@ -32,14 +32,7 @@ pub trait FarmingEvents {
     ) {
     }
 
-    fn _emit_harvest_event(
-        &self,
-        _user: AccountId,
-        _pool_id: u32,
-        _amount: Balance,
-        _to: AccountId,
-    ) {
-    }
+    fn _emit_harvest_event(&self, _user: AccountId, _pool_id: u32, _amount: Balance) {}
 
     fn _emit_log_pool_addition_event(
         &self,

@@ -34,4 +34,9 @@ pub trait FarmingGetters: Storage<Data> {
     fn get_rewarder(&self, pool_id: u32) -> Option<AccountId> {
         self.data::<Data>().rewarders.get(pool_id)
     }
+
+    #[ink(message)]
+    fn get_total_alloc_point(&self) -> u32 {
+        self.data::<Data>().total_alloc_point
+    }
 }

@@ -27,9 +27,11 @@ pub trait Rewarder: Storage<Data> + RewarderGetters {
     #[modifiers(only_master_chef)]
     fn on_arsw_reward(
         &self,
+        _pool_id: u32,
         _user: AccountId,
         to: AccountId,
         arsw_amount: Balance,
+        _new_lp_amount: Balance,
     ) -> Result<(), RewarderError> {
         let pending_reward = arsw_amount
             .checked_mul(self.reward_multiplier().into())
