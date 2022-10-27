@@ -33,6 +33,7 @@ pub enum FarmingError {
     CastToi128Error2,
     CastToi128Error3,
     CastToi128Error4,
+    CastToi128Error5,
     RewarderNotFound,
     SubUnderflow1,
     SubUnderflow2,

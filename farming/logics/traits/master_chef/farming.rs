@@ -146,18 +146,14 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                 .ok_or(FarmingError::AddOverflow8)?;
         }
 
-        let pending = <u128 as TryInto<i128>>::try_into(
-            user_info
-                .amount
-                .checked_mul(acc_arsw_per_share)
-                .ok_or(FarmingError::MulOverflow9)?
-                / ACC_ARSW_PRECISION,
-        )
-        .map_err(|_| FarmingError::CastToi128Error)?
-        .checked_sub(user_info.reward_debt)
-        .ok_or(FarmingError::SubUnderflow6)?;
-        Ok(<i128 as TryInto<u128>>::try_into(pending)
-            .map_err(|_| FarmingError::CastTou128Error1)?)
+        let pending = (user_info
+            .amount
+            .checked_mul(acc_arsw_per_share)
+            .ok_or(FarmingError::MulOverflow9)?
+            / ACC_ARSW_PRECISION)
+            .wrapping_add(user_info.reward_debt as u128);
+
+        Ok(pending)
     }
 
     #[ink(message)]
@@ -276,25 +272,20 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .get_user_info(pool_id, caller)
             .ok_or(FarmingError::UserNotFound)?;
 
-        let accumulated_arsw = <u128 as TryInto<i128>>::try_into(
-            user.amount
-                .checked_mul(pool.acc_arsw_per_share)
-                .ok_or(FarmingError::MulOverflow12)?
-                / ACC_ARSW_PRECISION,
-        )
-        .map_err(|_| FarmingError::CastToi128Error3)?;
+        let accumulated_arsw = user
+            .amount
+            .checked_mul(pool.acc_arsw_per_share)
+            .ok_or(FarmingError::MulOverflow12)?
+            / ACC_ARSW_PRECISION;
 
-        let pending_arsw = <i128 as TryInto<u128>>::try_into(
-            accumulated_arsw
-                .checked_sub(user.reward_debt)
-                .ok_or(FarmingError::SubUnderflow9)?,
-        )
-        .map_err(|_| FarmingError::CastTou128Error2)?;
+        let pending_arsw = accumulated_arsw.wrapping_add(user.reward_debt as u128);
 
         self.data::<Data>().user_info.insert(
             &(pool_id, to),
             &UserInfo {
-                reward_debt: accumulated_arsw,
+                reward_debt: accumulated_arsw
+                    .try_into()
+                    .map_err(|_| FarmingError::CastToi128Error5)?,
                 ..user
             },
         );
