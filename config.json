@@ -1,0 +1,4 @@
+{
+  "projectFiles": ["uniswap-v2/contracts/**/*"],
+  "typechainGeneratedPath": "types"
+}
