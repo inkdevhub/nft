@@ -27,6 +27,8 @@ pub enum FarmingError {
     CastTou128Error2,
     CastTou128Error3,
     CastTou128Error4,
+    CastTou128Error5,
+    CastTou128Error6,
     CastToi128Error,
     CastToi128Error2,
     CastToi128Error3,

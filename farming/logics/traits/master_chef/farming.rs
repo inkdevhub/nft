@@ -428,12 +428,11 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
 
             period += 1;
         }
-
-        Ok(arsw_reward
-            .checked_mul(ACC_ARSW_PRECISION)
-            .ok_or(FarmingError::MulOverflow8)?
-            .checked_div(lp_supply)
-            .ok_or(FarmingError::DivByZero3)?)
+        Ok(casted_mul(arsw_reward, ACC_ARSW_PRECISION)
+            .checked_div(lp_supply.into())
+            .ok_or(FarmingError::DivByZero3)?
+            .try_into()
+            .map_err(|_| FarmingError::CastTou128Error6)?)
     }
 
     fn _get_period(&self, block_number: u32) -> Result<u32, FarmingError> {
@@ -463,16 +462,17 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         if period > MAX_PERIOD {
             return Ok(0)
         }
-        Ok(FIRST_PERIOD_REWERD_SUPPLY
-            .checked_mul(
-                9u128
+        Ok(casted_mul(
+            FIRST_PERIOD_REWERD_SUPPLY,
+            9u128
+                .checked_pow(period)
+                .ok_or(FarmingError::PowOverflow1)?
+                / 10u128
                     .checked_pow(period)
-                    .ok_or(FarmingError::PowOverflow1)?
-                    / 10u128
-                        .checked_pow(period)
-                        .ok_or(FarmingError::PowOverflow2)?,
-            )
-            .ok_or(FarmingError::MulOverflow2)?)
+                    .ok_or(FarmingError::PowOverflow2)?,
+        )
+        .try_into()
+        .map_err(|_| FarmingError::CastTou128Error5)?)
     }
 
     fn _get_lp_supply(&self, pool_id: u32) -> Result<Balance, FarmingError> {
