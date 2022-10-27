@@ -20,7 +20,7 @@ describe('ROUTER', () => {
         const match = tokenA.contract.address.toString() == token0Address.output.toString()
         const token0 = match ? tokenA : tokenB
         const token1 = match ? tokenB : tokenA
-        const router_contract = await setupContract('router_contract', 'new', factory_contract.contract.address)
+        const router_contract = await setupContract('router_contract', 'new', factory_contract.contract.address, pair_code_hash)
 
         return {
             wallet,

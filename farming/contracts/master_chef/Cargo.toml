@@ -38,8 +38,4 @@ std = [
     "openbrush/std",
     "farming/std"
 ]
-[profile.dev]
-overflow-checks = false
-
-[profile.release]
-overflow-checks = false
+ink-as-dependency = []

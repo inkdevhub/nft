@@ -1,5 +1,6 @@
 use crate::traits::{
     factory::FactoryRef,
+    math::casted_mul,
     types::WrappedU256,
 };
 pub use crate::{
@@ -18,6 +19,7 @@ use openbrush::{
     modifiers,
     traits::{
         AccountId,
+        AccountIdExt,
         Balance,
         Storage,
         Timestamp,
@@ -115,11 +117,7 @@ impl<
         self._update(balance_0, balance_1, reserves.0, reserves.1)?;
 
         if fee_on {
-            let k = reserves
-                .0
-                .checked_mul(reserves.1)
-                .ok_or(PairError::MulOverFlow5)?;
-            self.data::<data::Data>().k_last = k;
+            self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
         }
 
         self._emit_mint_event(Self::env().caller(), amount_0, amount_1);
@@ -141,12 +139,12 @@ impl<
         let total_supply = self.data::<psp22::Data>().supply;
         let amount_0 = liquidity
             .checked_mul(balance_0)
-            .ok_or(PairError::MulOverFlow6)?
+            .ok_or(PairError::MulOverFlow5)?
             .checked_div(total_supply)
             .ok_or(PairError::DivByZero3)?;
         let amount_1 = liquidity
             .checked_mul(balance_1)
-            .ok_or(PairError::MulOverFlow7)?
+            .ok_or(PairError::MulOverFlow6)?
             .checked_div(total_supply)
             .ok_or(PairError::DivByZero4)?;
 
@@ -165,11 +163,7 @@ impl<
         self._update(balance_0, balance_1, reserves.0, reserves.1)?;
 
         if fee_on {
-            let k = reserves
-                .0
-                .checked_mul(reserves.1)
-                .ok_or(PairError::MulOverFlow5)?;
-            self.data::<data::Data>().k_last = k;
+            self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
         }
 
         self._emit_burn_event(Self::env().caller(), amount_0, amount_1, to);
@@ -248,18 +242,20 @@ impl<
 
         let balance_0_adjusted = balance_0
             .checked_mul(1000)
-            .ok_or(PairError::MulOverFlow8)?
-            .checked_sub(amount_0_in.checked_mul(3).ok_or(PairError::MulOverFlow9)?)
+            .ok_or(PairError::MulOverFlow7)?
+            .checked_sub(amount_0_in.checked_mul(3).ok_or(PairError::MulOverFlow8)?)
             .ok_or(PairError::SubUnderFlow10)?;
         let balance_1_adjusted = balance_1
             .checked_mul(1000)
-            .ok_or(PairError::MulOverFlow10)?
-            .checked_sub(amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow11)?)
+            .ok_or(PairError::MulOverFlow9)?
+            .checked_sub(amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow10)?)
             .ok_or(PairError::SubUnderFlow11)?;
 
         // Cast to U256 to prevent Overflow
-        if U256::from(balance_0_adjusted) * U256::from(balance_1_adjusted)
-            < U256::from(reserves.0) * U256::from(reserves.1) * U256::from(1000u128.pow(2))
+        if casted_mul(balance_0_adjusted, balance_1_adjusted)
+            < casted_mul(reserves.0, reserves.1)
+                .checked_mul(1000u128.pow(2).into())
+                .ok_or(PairError::MulOverFlow14)?
         {
             return Err(PairError::K)
         }
@@ -342,15 +338,18 @@ impl<
         reserve_1: Balance,
     ) -> Result<bool, PairError> {
         let fee_to = FactoryRef::fee_to(&self.data::<data::Data>().factory);
-        let fee_on = fee_to != ZERO_ADDRESS.into();
-        let k_last = self.data::<data::Data>().k_last;
+        let fee_on = !fee_to.is_zero();
+        let k_last: U256 = self.data::<data::Data>().k_last.into();
         if fee_on {
-            if k_last != 0 {
-                let root_k = reserve_0
-                    .checked_mul(reserve_1)
-                    .ok_or(PairError::MulOverFlow14)?
-                    .integer_sqrt();
-                let root_k_last = k_last.integer_sqrt();
+            if !k_last.is_zero() {
+                let root_k: Balance = casted_mul(reserve_0, reserve_1)
+                    .integer_sqrt()
+                    .try_into()
+                    .map_err(|_| PairError::CastOverflow1)?;
+                let root_k_last = k_last
+                    .integer_sqrt()
+                    .try_into()
+                    .map_err(|_| PairError::CastOverflow2)?;
                 if root_k > root_k_last {
                     let total_supply = self.data::<psp22::Data>().supply;
                     let numerator = total_supply
@@ -359,10 +358,10 @@ impl<
                                 .checked_sub(root_k_last)
                                 .ok_or(PairError::SubUnderFlow14)?,
                         )
-                        .ok_or(PairError::MulOverFlow15)?;
+                        .ok_or(PairError::MulOverFlow13)?;
                     let denominator = root_k
                         .checked_mul(5)
-                        .ok_or(PairError::MulOverFlow15)?
+                        .ok_or(PairError::MulOverFlow13)?
                         .checked_add(root_k_last)
                         .ok_or(PairError::AddOverflow1)?;
                     let liquidity = numerator
@@ -373,8 +372,8 @@ impl<
                     }
                 }
             }
-        } else if k_last != 0 {
-            self.data::<data::Data>().k_last = 0;
+        } else if !k_last.is_zero() {
+            self.data::<data::Data>().k_last = 0.into();
         }
         Ok(fee_on)
     }

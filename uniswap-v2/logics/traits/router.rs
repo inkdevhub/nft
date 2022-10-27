@@ -149,7 +149,7 @@ pub trait Router {
 
     fn _swap(
         &mut self,
-        amounts: Vec<Balance>,
+        amounts: &Vec<Balance>,
         path: Vec<AccountId>,
         to: AccountId,
     ) -> Result<(), RouterError>;
@@ -199,8 +199,6 @@ pub enum RouterError {
     SubUnderFlow1,
     MulOverFlow1,
     MulOverFlow2,
-    MulOverFlow3,
-    MulOverFlow4,
     DivByZero1,
     DivByZero2,
     DivByZero3,

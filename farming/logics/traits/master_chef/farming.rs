@@ -444,6 +444,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .ok_or(FarmingError::SubUnderflow1)?
             / BLOCK_PER_PERIOD)
     }
+
     fn _period_max(&self, period: u32) -> Result<u32, FarmingError> {
         Ok(ARTHSWAP_ORIGIN_BLOCK
             .checked_add(

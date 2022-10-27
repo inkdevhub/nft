@@ -21,9 +21,10 @@ pub mod router {
 
     impl RouterContract {
         #[ink(constructor)]
-        pub fn new(factory: AccountId) -> Self {
+        pub fn new(factory: AccountId, pair_code_hash: Hash) -> Self {
             ink_lang::codegen::initialize_contract(|instance: &mut Self| {
                 instance.router.factory = factory;
+                instance.router.pair_code_hash = pair_code_hash;
             })
         }
     }

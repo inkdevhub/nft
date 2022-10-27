@@ -9,10 +9,8 @@ pub use crate::{
         router::*,
     },
 };
-use ink_prelude::{
-    vec,
-    vec::Vec,
-};
+use ink_env::hash::Blake2x256;
+use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::traits::psp22::PSP22Ref,
     modifier_definition,
@@ -25,9 +23,6 @@ use openbrush::{
     },
 };
 use primitive_types::U256;
-
-// Chain decimals is 18
-pub const ONE: u128 = 1_000_000_000_000_000_000;
 
 impl<T: Storage<data::Data>> Router for T {
     default fn factory(&self) -> AccountId {
@@ -187,7 +182,7 @@ impl<T: Storage<data::Data>> Router for T {
             Vec::new(),
         )?;
 
-        self._swap(amounts.clone(), path, to)?;
+        self._swap(&amounts, path, to)?;
 
         Ok(amounts)
     }
@@ -216,7 +211,7 @@ impl<T: Storage<data::Data>> Router for T {
             Vec::new(),
         )?;
 
-        self._swap(amounts.clone(), path, to)?;
+        self._swap(&amounts, path, to)?;
 
         Ok(amounts)
     }
@@ -285,7 +280,8 @@ impl<T: Storage<data::Data>> Router for T {
             return Err(RouterError::InvalidPath)
         }
 
-        let mut amounts: Vec<Balance> = vec![amount_in];
+        let mut amounts = Vec::with_capacity(path.len());
+        amounts.push(amount_in);
         for i in 0..path.len() - 1 {
             let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
             amounts.push(self.get_amount_out(amounts[i], reserve_in, reserve_out)?);
@@ -304,10 +300,11 @@ impl<T: Storage<data::Data>> Router for T {
             return Err(RouterError::InvalidPath)
         }
 
-        let mut amounts: Vec<Balance> = vec![amount_out];
-        for i in 0..path.len() - 1 {
+        let mut amounts = Vec::with_capacity(path.len());
+        amounts[path.len() - 1] = amount_out;
+        for i in (0..path.len() - 1).rev() {
             let (reserve_in, reserve_out) = self._get_reserves(factory, path[i], path[i + 1])?;
-            amounts.push(self.get_amount_in(amounts[i], reserve_in, reserve_out)?);
+            amounts[i] = self.get_amount_in(amounts[i + 1], reserve_in, reserve_out)?;
         }
 
         Ok(amounts)
@@ -326,22 +323,21 @@ impl<T: Storage<data::Data>> Router for T {
             return Err(RouterError::InsufficientLiquidity)
         }
 
-        let numerator: U256 = U256::from(reserve_in)
-            .checked_mul(U256::from(amount_out))
-            .ok_or(RouterError::MulOverFlow2)?
-            .checked_mul(U256::from(1000))
-            .ok_or(RouterError::MulOverFlow3)?;
+        let numerator = casted_mul(reserve_in, amount_out)
+            .checked_mul(1000.into())
+            .ok_or(RouterError::MulOverFlow2)?;
 
-        let denominator: U256 = U256::from(reserve_out)
-            .checked_sub(U256::from(amount_out))
-            .ok_or(RouterError::SubUnderFlow1)?
-            .checked_mul(U256::from(997))
-            .ok_or(RouterError::MulOverFlow4)?;
+        let denominator = casted_mul(
+            reserve_out
+                .checked_sub(amount_out)
+                .ok_or(RouterError::SubUnderFlow1)?,
+            997,
+        );
 
         let amount_in: Balance = numerator
             .checked_div(denominator)
             .ok_or(RouterError::DivByZero3)?
-            .checked_add(U256::from(ONE as Balance))
+            .checked_add(1.into())
             .ok_or(RouterError::AddOverFlow2)?
             .try_into()
             .map_err(|_| RouterError::CastOverflow3)?;
@@ -391,7 +387,7 @@ impl<T: Storage<data::Data>> Router for T {
 
     default fn _swap(
         &mut self,
-        amounts: Vec<Balance>,
+        amounts: &Vec<Balance>,
         path: Vec<AccountId>,
         to: AccountId,
     ) -> Result<(), RouterError> {
@@ -428,17 +424,24 @@ impl<T: Storage<data::Data>> Router for T {
     /// Original Uniswap Library pairFor function calculate pair contract address without making cross contract calls.
     /// Please refer https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol#L18
     ///
-    /// In this contract, use cross contract call to get pair contract address.
+    /// In this contract, use precomputed address like Uniswap's, as ink!'s deployment is done via create2-like one by default.
+    /// Please refer https://github.com/paritytech/substrate/blob/493b58bd4a475080d428ce47193ee9ea9757a808/frame/contracts/src/lib.rs#L178
+    /// for how contract's address is calculated.
     default fn _pair_for(
         &self,
         factory: AccountId,
         token_a: AccountId,
         token_b: AccountId,
     ) -> Result<AccountId, RouterError> {
-        let (token_0, token_1) = self._sort_tokens(token_a, token_b)?;
-        let pair =
-            FactoryRef::get_pair(&factory, token_0, token_1).ok_or(RouterError::PairNotFound)?;
-        Ok(pair)
+        let tokens = self._sort_tokens(token_a, token_b)?;
+        let salt = &Self::env().hash_encoded::<Blake2x256, _>(&tokens)[..4];
+        let input: Vec<_> = AsRef::<[u8]>::as_ref(&factory)
+            .iter()
+            .chain(self.data().pair_code_hash.as_ref())
+            .chain(salt)
+            .cloned()
+            .collect();
+        Ok(Self::env().hash_bytes::<Blake2x256>(&input).into())
     }
 
     default fn _sort_tokens(
