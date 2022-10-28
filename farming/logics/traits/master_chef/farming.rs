@@ -218,9 +218,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         amount: Balance,
         to: AccountId,
     ) -> Result<(), FarmingError> {
-        if amount == 0 {
-            return Err(FarmingError::ZeroWithdrawal)
-        }
+        ensure!(amount > 0, FarmingError::ZeroWithdrawal);
         let pool = self
             .get_pool_infos(pool_id)
             .ok_or(FarmingError::PoolNotFound)?;
@@ -425,7 +423,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     #[ink(message)]
     #[modifiers(only_owner)]
     fn deposit_arsw(&mut self, amount: Balance) -> Result<(), FarmingError> {
-        ensure!(amount > 0, FarmingError::AmountShouldBeGreaterThanZero);
+        ensure!(amount > 0, FarmingError::ZeroWithdrawal);
         let caller = Self::env().caller();
         PSP22Ref::transfer_from_builder(
             &mut self.data::<Data>().arsw_token,
@@ -443,9 +441,10 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
 
     fn _check_pool_duplicate(&self, lp_token: AccountId) -> Result<(), FarmingError> {
         let lp_tokens = &self.data::<Data>().lp_tokens;
-        if lp_tokens.iter().any(|lp| *lp == lp_token) {
-            return Err(FarmingError::DuplicateLPToken)
-        }
+        ensure!(
+            !lp_tokens.iter().any(|lp| *lp == lp_token),
+            FarmingError::DuplicateLPToken
+        );
         Ok(())
     }
 
@@ -491,9 +490,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         current_block: u32,
         lp_supply: Balance,
     ) -> Result<Balance, FarmingError> {
-        if lp_supply == 0 {
-            return Err(FarmingError::LpSupplyIsZero)
-        }
+        ensure!(lp_supply > 0, FarmingError::LpSupplyIsZero);
         let last_reward_block_period = self._get_period(pool_info.last_reward_block)?;
         let current_period = self._get_period(Self::env().block_number())?;
 
@@ -554,9 +551,10 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     }
 
     fn _get_period(&self, block_number: u32) -> Result<u32, FarmingError> {
-        if block_number < ARTHSWAP_ORIGIN_BLOCK {
-            return Err(FarmingError::BlockNumberLowerThanOriginBlock)
-        }
+        ensure!(
+            block_number >= ARTHSWAP_ORIGIN_BLOCK,
+            FarmingError::BlockNumberLowerThanOriginBlock
+        );
 
         // BLOCK_PER_PERIOD is never 0
         return Ok(block_number

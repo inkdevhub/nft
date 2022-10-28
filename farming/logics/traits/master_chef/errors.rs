@@ -10,7 +10,6 @@ pub enum FarmingError {
     OwnableError(OwnableError),
     PSP22Error(PSP22Error),
     RewarderError(RewarderError),
-    AmountShouldBeGreaterThanZero,
     DuplicateLPToken,
     PoolNotFound,
     UserNotFound,
