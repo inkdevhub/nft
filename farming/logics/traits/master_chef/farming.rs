@@ -151,7 +151,8 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .checked_mul(acc_arsw_per_share)
             .ok_or(FarmingError::MulOverflow9)?
             / ACC_ARSW_PRECISION)
-            .wrapping_add(user_info.reward_debt as u128);
+            .checked_add_signed(-user_info.reward_debt)
+            .ok_or(FarmingError::AddOverflow14)?;
 
         Ok(pending)
     }
@@ -278,7 +279,9 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .ok_or(FarmingError::MulOverflow12)?
             / ACC_ARSW_PRECISION;
 
-        let pending_arsw = accumulated_arsw.wrapping_add(user.reward_debt as u128);
+        let pending_arsw = accumulated_arsw
+            .checked_add_signed(-user.reward_debt)
+            .ok_or(FarmingError::AddOverflow13)?;
 
         self.data::<Data>().user_info.insert(
             &(pool_id, to),

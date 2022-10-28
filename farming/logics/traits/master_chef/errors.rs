@@ -56,6 +56,8 @@ pub enum FarmingError {
     AddOverflow10,
     AddOverflow11,
     AddOverflow12,
+    AddOverflow13,
+    AddOverflow14,
     MulOverflow1,
     MulOverflow2,
     MulOverflow3,
