@@ -10,12 +10,14 @@ pub use crate::traits::{
     rewarder::rewarder::RewarderRef,
 };
 use crate::{
+    ensure,
     helpers::math::casted_mul,
     traits::master_chef::{
         data::UserInfo,
         errors::FarmingError,
     },
 };
+use ink_env::CallFlags;
 use ink_prelude::vec::Vec;
 use openbrush::{
     contracts::{
@@ -91,7 +93,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     ) -> Result<(), FarmingError> {
         let pool_info = self
             .get_pool_infos(pool_id)
-            .ok_or(FarmingError::PoolNotFound5)?;
+            .ok_or(FarmingError::PoolNotFound)?;
         self._update_all_pools()?;
         self.data::<Data>().total_alloc_point = self
             .data::<Data>()
@@ -129,7 +131,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     fn pending_arsw(&self, pool_id: u32, user: AccountId) -> Result<Balance, FarmingError> {
         let pool = self
             .get_pool_infos(pool_id)
-            .ok_or(FarmingError::PoolNotFound4)?;
+            .ok_or(FarmingError::PoolNotFound)?;
         let user_info = self
             .get_user_info(pool_id, user)
             .ok_or(FarmingError::UserNotFound)?;
@@ -166,7 +168,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     ) -> Result<(), FarmingError> {
         let pool = self
             .get_pool_infos(pool_id)
-            .ok_or(FarmingError::PoolNotFound4)?;
+            .ok_or(FarmingError::PoolNotFound)?;
         self._update_pool(pool_id)?;
         let user = self.get_user_info(pool_id, to).unwrap_or_default();
         let user_amount = user
@@ -197,7 +199,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
 
         let lp_token = self
             .get_lp_token(pool_id)
-            .ok_or(FarmingError::PoolNotFound2)?;
+            .ok_or(FarmingError::PoolNotFound)?;
         PSP22Ref::transfer_from(
             &lp_token,
             Self::env().caller(),
@@ -221,7 +223,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         }
         let pool = self
             .get_pool_infos(pool_id)
-            .ok_or(FarmingError::PoolNotFound6)?;
+            .ok_or(FarmingError::PoolNotFound)?;
         self._update_pool(pool_id)?;
         let caller = Self::env().caller();
         let user = self
@@ -256,7 +258,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
 
         let lp_token = self
             .get_lp_token(pool_id)
-            .ok_or(FarmingError::PoolNotFound3)?;
+            .ok_or(FarmingError::LpTokenNotFound)?;
         PSP22Ref::transfer(&lp_token, to, amount, Vec::new())?;
         self._emit_withdraw_event(caller, pool_id, amount, to);
         Ok(())
@@ -266,7 +268,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     fn harvest(&mut self, pool_id: u32, to: AccountId) -> Result<(), FarmingError> {
         let pool = self
             .get_pool_infos(pool_id)
-            .ok_or(FarmingError::PoolNotFound7)?;
+            .ok_or(FarmingError::PoolNotFound)?;
         self._update_pool(pool_id)?;
         let caller = Self::env().caller();
         let user = self
@@ -317,6 +319,128 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         Ok(())
     }
 
+    #[ink(message)]
+    fn withdraw_and_harvest(
+        &mut self,
+        pool_id: u32,
+        amount: Balance,
+        to: AccountId,
+    ) -> Result<(), FarmingError> {
+        let pool = self
+            .get_pool_infos(pool_id)
+            .ok_or(FarmingError::PoolNotFound)?;
+        self._update_pool(pool_id)?;
+        let caller = Self::env().caller();
+        let user = self
+            .get_user_info(pool_id, caller)
+            .ok_or(FarmingError::UserNotFound)?;
+
+        let accumulated_arsw = user
+            .amount
+            .checked_mul(pool.acc_arsw_per_share)
+            .ok_or(FarmingError::MulOverflow13)?
+            / ACC_ARSW_PRECISION;
+
+        let pending_arsw = accumulated_arsw
+            .checked_add_signed(-user.reward_debt)
+            .ok_or(FarmingError::AddOverflow15)?;
+
+        let user_reward_debt = accumulated_arsw
+            .checked_sub(
+                (casted_mul(amount, pool.acc_arsw_per_share) / ACC_ARSW_PRECISION)
+                    .try_into()
+                    .map_err(|_| FarmingError::CastTou128Error7)?,
+            )
+            .ok_or(FarmingError::SubUnderflow10)?;
+
+        let user_amount = user
+            .amount
+            .checked_sub(amount)
+            .ok_or(FarmingError::AddOverflow16)?;
+
+        self.data::<Data>().user_info.insert(
+            &(pool_id, to),
+            &UserInfo {
+                reward_debt: user_reward_debt
+                    .try_into()
+                    .map_err(|_| FarmingError::CastToi128Error7)?,
+                amount: user_amount,
+            },
+        );
+
+        PSP22Ref::transfer(
+            &mut self.data::<Data>().arsw_token,
+            to,
+            pending_arsw,
+            Vec::new(),
+        )?;
+        if let Some(rewarder_address) = self.get_rewarder(pool_id) {
+            RewarderRef::on_arsw_reward(
+                &rewarder_address,
+                pool_id,
+                caller,
+                to,
+                pending_arsw,
+                user.amount,
+            )?;
+        }
+        let lp_token = self
+            .get_lp_token(pool_id)
+            .ok_or(FarmingError::LpTokenNotFound)?;
+        PSP22Ref::transfer(&lp_token, to, amount, Vec::new())?;
+
+        self._emit_harvest_event(caller, pool_id, pending_arsw);
+        self._emit_withdraw_event(caller, pool_id, amount, to);
+        Ok(())
+    }
+
+    #[ink(message)]
+    fn emergency_withdraw(&mut self, pool_id: u32, to: AccountId) -> Result<(), FarmingError> {
+        let caller = Self::env().caller();
+        let user = self
+            .get_user_info(pool_id, caller)
+            .ok_or(FarmingError::UserNotFound)?;
+        let amount = user.amount;
+        self.data::<Data>().user_info.insert(
+            &(pool_id, to),
+            &UserInfo {
+                reward_debt: 0,
+                amount: 0,
+            },
+        );
+
+        if let Some(rewarder_address) = self.get_rewarder(pool_id) {
+            RewarderRef::on_arsw_reward(&rewarder_address, pool_id, caller, to, 0, 0)?;
+        }
+
+        let lp_token = self
+            .get_lp_token(pool_id)
+            .ok_or(FarmingError::LpTokenNotFound)?;
+        PSP22Ref::transfer(&lp_token, to, amount, Vec::new())?;
+
+        self._emit_emergency_withdraw_event(caller, pool_id, amount, to);
+        Ok(())
+    }
+
+    #[ink(message)]
+    #[modifiers(only_owner)]
+    fn deposit_arsw(&mut self, amount: Balance) -> Result<(), FarmingError> {
+        ensure!(amount > 0, FarmingError::AmountShouldBeGreaterThanZero);
+        let caller = Self::env().caller();
+        PSP22Ref::transfer_from_builder(
+            &mut self.data::<Data>().arsw_token,
+            caller,
+            Self::env().account_id(),
+            amount,
+            Vec::new(),
+        )
+        .call_flags(CallFlags::default().set_allow_reentry(true))
+        .fire()
+        .unwrap()?;
+        self._emit_deposit_arsw_event(Self::env().block_number(), amount);
+        Ok(())
+    }
+
     fn _check_pool_duplicate(&self, lp_token: AccountId) -> Result<(), FarmingError> {
         let lp_tokens = &self.data::<Data>().lp_tokens;
         if lp_tokens.iter().any(|lp| *lp == lp_token) {
@@ -336,7 +460,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     fn _update_pool(&mut self, pool_id: u32) -> Result<(), FarmingError> {
         let mut pool = self
             .get_pool_infos(pool_id)
-            .ok_or(FarmingError::PoolNotFound1)?;
+            .ok_or(FarmingError::PoolNotFound)?;
         let current_block = Self::env().block_number();
         if current_block > pool.last_reward_block {
             let lp_supply = self._get_lp_supply(pool_id)?;
