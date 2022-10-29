@@ -4,7 +4,10 @@
 #[openbrush::contract]
 pub mod shiden34 {
     // imports from ink!
-    use ink_prelude::string::String;
+    use ink_prelude::string::{
+        String,
+        ToString,
+    };
     use ink_storage::traits::SpreadAllocate;
 
     // imports from openbrush
@@ -48,6 +51,19 @@ pub mod shiden34 {
     impl PSP34Mintable for Shiden34Contract {}
     impl PSP34Enumerable for Shiden34Contract {}
     impl PSP34Metadata for Shiden34Contract {}
+    impl Ownable for Shiden34Contract {}
+
+    #[openbrush::trait_definition]
+    pub trait Shiden34Trait {
+        #[ink(message, payable)]
+        fn mint_for(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error>;
+        #[ink(message)]
+        fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error>;
+        #[ink(message)]
+        fn token_uri(&self, token_id: u32) -> String;
+        #[ink(message)]
+        fn max_supply(&self) -> u64;
+    }
 
     impl Shiden34Contract {
         #[ink(constructor)]
@@ -77,11 +93,13 @@ pub mod shiden34 {
                 _instance.max_supply = max_supply;
                 _instance.price_per_mint = price_per_mint;
                 _instance.last_token_id = 0;
+                let caller = _instance.env().caller();
+                _instance._init_with_owner(caller);
             })
         }
 
         /// Mint single token
-        #[ink(message, payable)]
+        #[ink(message)]
         #[modifiers(non_reentrant)]
         pub fn mint(&mut self) -> Result<(), PSP34Error> {
             self.check_value(1)?; //
@@ -89,39 +107,6 @@ pub mod shiden34 {
             self.last_token_id += 1;
             self._mint_to(caller, Id::U64(self.last_token_id))?;
             Ok(())
-        }
-
-        /// Mint several tokens
-        #[ink(message, payable)]
-        #[modifiers(non_reentrant)]
-        pub fn mint_for(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error> {
-            self.check_value(mint_amount)?;
-            self.check_amount(mint_amount)?;
-
-            let next_to_mint = self.last_token_id + 1; // first mint id is 1
-            let mint_offset = next_to_mint + mint_amount;
-
-            for mint_id in next_to_mint..mint_offset {
-                assert!(self._mint_to(to, Id::U64(mint_id)).is_ok());
-                self.last_token_id += 1;
-            }
-
-            Ok(())
-        }
-
-        /// Get URI from token ID
-        #[ink(message)]
-        pub fn token_uri(&self, token_id: u32) -> String {
-            let value = self.get_attribute(Id::U8(0), String::from("baseUri").into_bytes());
-            let mut token_uri = String::from_utf8(value.unwrap()).unwrap();
-            token_uri = token_uri + &token_id.to_string() + &String::from(".json");
-            return token_uri
-        }
-
-        /// Get max supply of tokens
-        #[ink(message)]
-        pub fn max_supply(&self) -> u64 {
-            self.max_supply
         }
 
         /// Check id the transfered mint values is as expected
@@ -142,6 +127,53 @@ pub mod shiden34 {
                 return Err(PSP34Error::Custom("CollectionFullOrLocked".to_string()))
             }
             Ok(())
+        }
+    }
+
+    impl Shiden34Trait for Shiden34Contract {
+        /// Mint several tokens
+        #[ink(message, payable)]
+        #[modifiers(non_reentrant)]
+        fn mint_for(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error> {
+            self.check_value(mint_amount)?;
+            self.check_amount(mint_amount)?;
+
+            let next_to_mint = self.last_token_id + 1; // first mint id is 1
+            let mint_offset = next_to_mint + mint_amount;
+
+            for mint_id in next_to_mint..mint_offset {
+                assert!(self._mint_to(to, Id::U64(mint_id)).is_ok());
+                self.last_token_id += 1;
+            }
+
+            Ok(())
+        }
+
+        /// Mint several tokens
+        #[ink(message)]
+        #[modifiers(only_owner)]
+        fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error> {
+            self._set_attribute(
+                Id::U8(0),
+                String::from("baseUri").into_bytes(),
+                uri.into_bytes(),
+            );
+            Ok(())
+        }
+
+        /// Get URI from token ID
+        #[ink(message)]
+        fn token_uri(&self, token_id: u32) -> String {
+            let value = self.get_attribute(Id::U8(0), String::from("baseUri").into_bytes());
+            let mut token_uri = String::from_utf8(value.unwrap()).unwrap();
+            token_uri = token_uri + &token_id.to_string() + &String::from(".json");
+            return token_uri
+        }
+
+        /// Get max supply of tokens
+        #[ink(message)]
+        fn max_supply(&self) -> u64 {
+            self.max_supply
         }
     }
 
@@ -274,6 +306,32 @@ pub mod shiden34 {
                 sh34.token_uri(1),
                 BASE_URI.to_owned() + &String::from("1.json")
             )
+        }
+
+        #[ink::test]
+        fn owner_is_set() {
+            let accounts = default_accounts();
+            let sh34 = init();
+            assert_eq!(sh34.owner(), accounts.alice);
+        }
+
+        #[ink::test]
+        fn set_base_uri_works() {
+            let accounts = default_accounts();
+            const NEW_BASE_URI: &str = "new_uri/";
+            let mut sh34 = init();
+
+            set_sender(accounts.alice);
+            assert!(sh34.set_base_uri(NEW_BASE_URI.to_string()).is_ok());
+            assert_eq!(
+                sh34.get_attribute(Id::U8(0), String::from("baseUri").into_bytes()),
+                Some(String::from(NEW_BASE_URI).into_bytes())
+            );
+            set_sender(accounts.bob);
+            assert_eq!(
+                sh34.set_base_uri("shallFail".to_string()),
+                Err(Custom("O::CallerIsNotOwner".to_string()))
+            );
         }
 
         fn default_accounts() -> test::DefaultAccounts<ink_env::DefaultEnvironment> {
