@@ -7,5 +7,6 @@ members = [
 
 exclude = [
     "uniswap-v2/logics",
-    "farming/logics"
+    "farming/logics",
+    "psp34_shiden/contracts/shiden34"
 ]
