@@ -16,7 +16,6 @@ pub mod shiden34 {
         contracts::{
             ownable::*,
             psp34::extensions::{
-                burnable::*,
                 enumerable::*,
                 metadata::*,
                 mintable::*,
@@ -48,13 +47,14 @@ pub mod shiden34 {
 
     // Section contains default implementation without any modifications
     impl PSP34 for Shiden34Contract {}
-    impl PSP34Burnable for Shiden34Contract {}
     impl PSP34Enumerable for Shiden34Contract {}
     impl PSP34Metadata for Shiden34Contract {}
     impl Ownable for Shiden34Contract {}
 
     #[openbrush::trait_definition]
     pub trait Shiden34Trait {
+        #[ink(message, payable)]
+        fn mint_next(&mut self) -> Result<(), PSP34Error>;
         #[ink(message, payable)]
         fn mint_for(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error>;
         #[ink(message)]
@@ -126,9 +126,17 @@ pub mod shiden34 {
     }
 
     impl PSP34Mintable for Shiden34Contract {
-        /// Mint next available token for the caller. The arguments account and id are ignored
+        /// This mint function is not used since it can't be made payable
         #[ink(message)]
         fn mint(&mut self, _: AccountId, _: Id) -> Result<(), PSP34Error> {
+            Ok(())
+        }
+    }
+
+    impl Shiden34Trait for Shiden34Contract {
+        /// Mint next available token for the caller
+        #[ink(message, payable)]
+        fn mint_next(&mut self) -> Result<(), PSP34Error> {
             self.check_value(1)?;
             let caller = self.env().caller();
             self.last_token_id += 1;
@@ -136,9 +144,7 @@ pub mod shiden34 {
 
             Ok(())
         }
-    }
 
-    impl Shiden34Trait for Shiden34Contract {
         /// Mint several tokens
         #[ink(message, payable)]
         #[modifiers(non_reentrant)]
@@ -229,18 +235,16 @@ pub mod shiden34 {
         fn mint_single_works() {
             let mut sh34 = init();
             let accounts = default_accounts();
-            set_sender(accounts.alice);
+            assert_eq!(sh34.owner(), accounts.alice);
+            set_sender(accounts.bob);
 
             assert_eq!(sh34.total_supply(), 0);
             test::set_value_transferred::<ink_env::DefaultEnvironment>(PRICE);
-            assert!(sh34.mint(accounts.alice, Id::U64(0)).is_ok());
+            assert!(sh34.mint_next().is_ok());
             assert_eq!(sh34.total_supply(), 1);
-            assert_eq!(sh34.owner_of(Id::U64(1)), Some(accounts.alice));
-            assert_eq!(sh34.balance_of(accounts.alice), 1);
-            assert_eq!(
-                sh34.owners_token_by_index(accounts.alice, 0),
-                Ok(Id::U64(1))
-            );
+            assert_eq!(sh34.owner_of(Id::U64(1)), Some(accounts.bob));
+            assert_eq!(sh34.balance_of(accounts.bob), 1);
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 0), Ok(Id::U64(1)));
             assert_eq!(sh34.last_token_id, 1);
         }
 
@@ -290,7 +294,7 @@ pub mod shiden34 {
         fn mint_low_value_fails() {
             let mut sh34 = init();
             let accounts = default_accounts();
-            set_sender(accounts.alice);
+            set_sender(accounts.bob);
             let num_of_mints = 1;
 
             assert_eq!(sh34.total_supply(), 0);
@@ -301,6 +305,11 @@ pub mod shiden34 {
                 sh34.mint_for(accounts.bob, num_of_mints),
                 Err(Custom("BadMintValue".to_string()))
             );
+            test::set_value_transferred::<ink_env::DefaultEnvironment>(
+                PRICE * num_of_mints as u128 - 1,
+            );
+            assert_eq!(sh34.mint_next(), Err(Custom("BadMintValue".to_string())));
+            assert_eq!(sh34.total_supply(), 0);
         }
 
         #[ink::test]
@@ -310,11 +319,11 @@ pub mod shiden34 {
             set_sender(accounts.alice);
 
             test::set_value_transferred::<ink_env::DefaultEnvironment>(PRICE);
-            assert!(sh34.mint(accounts.alice, Id::U64(0)).is_ok());
-            // assert_eq!(
-            //     sh34.token_uri(1),
-            //     Ok(BASE_URI.to_owned() + &String::from("1.json"))
-            // );
+            assert!(sh34.mint_next().is_ok());
+            assert_eq!(
+                sh34.token_uri(1),
+                Ok(BASE_URI.to_owned() + &String::from("1.json"))
+            );
             // return error if request is for not yet minted token
             assert_eq!(sh34.token_uri(42), Err(TokenNotExists));
         }
