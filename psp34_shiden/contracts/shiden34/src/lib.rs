@@ -95,24 +95,8 @@ pub mod shiden34 {
         #[ink(message, payable)]
         #[modifiers(non_reentrant)]
         pub fn mint_for(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error> {
-            // self.data::<ownable::Data>().owner = _to;
-            ink_env::debug_println!("####### mint RMRK contract amount:{:?}", mint_amount);
-            if mint_amount == 0 {
-                return Err(PSP34Error::Custom("CannotMintZeroTokens".to_string()))
-            }
-            // if self.data::<data::Data>().last_minted_token_id + mint_amount
-            //     > self.data::<data::Data>().max_supply
-            // {
-            //     ink_env::debug_println!("####### error CollectionFullOrLocked");
-            //     return Err(PSP34Error::CollectionFullOrLocked)
-            // }
-            // if Self::env().transferred_value()
-            //     != mint_amount as u128 * self.data::<data::Data>().price_per_mint
-            // {
-            //     ink_env::debug_println!("####### error MintUnderpriced");
-            //     return Err(PSP34Error::MintUnderpriced)
-            // }
             self.check_value(mint_amount)?;
+            self.check_amount(mint_amount)?;
 
             let next_to_mint = self.last_token_id + 1; // first mint id is 1
             let mint_offset = next_to_mint + mint_amount;
@@ -127,6 +111,17 @@ pub mod shiden34 {
             Ok(())
         }
 
+        /// Get URI from token ID
+        #[ink(message)]
+        pub fn token_uri(&self, token_id: u32) -> String {
+            ink_env::debug_println!("####### get tokenUri for: {:?}", token_id);
+            let value = self.get_attribute(Id::U8(0), String::from("baseUri").into_bytes());
+            let mut token_uri = String::from_utf8(value.unwrap()).unwrap();
+            token_uri = token_uri + &token_id.to_string() + &String::from(".json");
+            ink_env::debug_println!("####### tokenUri is: [{:?}]", token_uri);
+            return token_uri
+        }
+
         /// Get max supply of tokens
         #[ink(message)]
         pub fn max_supply(&self) -> u64 {
@@ -136,8 +131,22 @@ pub mod shiden34 {
         /// Check id the transfered mint values is as expected
         fn check_value(&self, mint_amount: u64) -> Result<(), PSP34Error> {
             if Self::env().transferred_value() != mint_amount as u128 * self.price_per_mint {
-                ink_env::debug_println!("####### error MintUnderpriced");
+                ink_env::debug_println!("####### error BadMintValue");
                 return Err(PSP34Error::Custom("BadMintValue".to_string()))
+            }
+            Ok(())
+        }
+
+        /// Check amount of tokens to be minted
+        fn check_amount(&self, mint_amount: u64) -> Result<(), PSP34Error> {
+            if mint_amount == 0 {
+                ink_env::debug_println!("####### error CannotMintZeroTokens");
+                return Err(PSP34Error::Custom("CannotMintZeroTokens".to_string()))
+            }
+
+            if self.last_token_id + mint_amount > self.max_supply {
+                ink_env::debug_println!("####### error CollectionFullOrLocked");
+                return Err(PSP34Error::Custom("CollectionFullOrLocked".to_string()))
             }
             Ok(())
         }
@@ -148,6 +157,8 @@ pub mod shiden34 {
         use super::*;
         use ink_lang as ink;
         const PRICE: Balance = 100_000_000_000_000_000;
+        const BASE_URI: &str = "ipfs://myIpfsUri/";
+        use crate::shiden34::PSP34Error::*;
         use ink_env::test;
 
         #[ink::test]
@@ -163,7 +174,7 @@ pub mod shiden34 {
             Shiden34Contract::new(
                 String::from("Shiden34"),
                 String::from("SH34"),
-                String::from("ipfs://myIpfsUri/"),
+                String::from(BASE_URI),
                 10,
                 PRICE,
             )
@@ -181,6 +192,10 @@ pub mod shiden34 {
             assert_eq!(sh34.total_supply(), 1);
             assert_eq!(sh34.owner_of(Id::U64(1)), Some(accounts.alice));
             assert_eq!(sh34.balance_of(accounts.alice), 1);
+            assert_eq!(
+                sh34.owners_token_by_index(accounts.alice, 0),
+                Ok(Id::U64(1))
+            );
         }
 
         #[ink::test]
@@ -197,6 +212,29 @@ pub mod shiden34 {
             assert!(sh34.mint_for(accounts.bob, num_of_mints).is_ok());
             assert_eq!(sh34.total_supply(), num_of_mints as u128);
             assert_eq!(sh34.balance_of(accounts.bob), 5);
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 0), Ok(Id::U64(1)));
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 1), Ok(Id::U64(2)));
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 2), Ok(Id::U64(3)));
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 3), Ok(Id::U64(4)));
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 4), Ok(Id::U64(5)));
+            assert_eq!(
+                sh34.owners_token_by_index(accounts.bob, 5),
+                Err(TokenNotExists)
+            );
+        }
+
+        #[ink::test]
+        fn token_uri_works() {
+            let mut sh34 = init();
+            let accounts = default_accounts();
+            set_sender(accounts.alice);
+
+            test::set_value_transferred::<ink_env::DefaultEnvironment>(PRICE);
+            assert!(sh34.mint().is_ok());
+            assert_eq!(
+                sh34.token_uri(1),
+                BASE_URI.to_owned() + &String::from("1.json")
+            )
         }
 
         fn default_accounts() -> test::DefaultAccounts<ink_env::DefaultEnvironment> {
