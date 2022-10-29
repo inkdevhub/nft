@@ -63,6 +63,8 @@ pub mod shiden34 {
         fn token_uri(&self, token_id: u64) -> Result<String, PSP34Error>;
         #[ink(message)]
         fn max_supply(&self) -> u64;
+        #[ink(message)]
+        fn withdraw(&mut self) -> Result<(), PSP34Error>;
     }
 
     impl Shiden34Contract {
@@ -190,6 +192,20 @@ pub mod shiden34 {
         fn max_supply(&self) -> u64 {
             self.max_supply
         }
+        
+        /// Get max supply of tokens
+        #[ink(message)]
+        #[modifiers(only_owner)]
+        fn withdraw(&mut self) -> Result<(), PSP34Error> {
+            let balance = self.env().balance();
+            let current_balance = balance.checked_sub(self.env().minimum_balance()).unwrap_or_default();
+            let transfer_result = self.env().transfer(self.owner(), current_balance);
+            if transfer_result.is_err() {
+                return Err(PSP34Error::Custom("WithdrawFailed".to_string()));
+            }
+            Ok(())
+        }
+
     }
 
     #[cfg(test)]
