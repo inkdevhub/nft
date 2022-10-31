@@ -3,15 +3,12 @@ import BN from 'bn.js';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import type { InjectedAccountWithMeta } from "@polkadot/extension-inject/types";
 import { ContractPromise } from '@polkadot/api-contract';
+import { web3FromSource } from '@polkadot/extension-dapp';
+
 import axios from 'axios';
 import Header from './Header';
 import Footer from './Footer';
 import SampleContractsList from './SampleContractsList';
-
-import {
-  web3FromSource
-} from '@polkadot/extension-dapp';
-
 
 // Specify the metadata of the contract.
 import abi from '../metadata/metadata_sample.json';
