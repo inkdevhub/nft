@@ -54,8 +54,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         self._update_all_pools()?;
 
         self.data::<Data>().total_alloc_point = self
-            .data::<Data>()
-            .total_alloc_point
+            .get_total_alloc_point()
             .checked_add(alloc_point)
             .ok_or(FarmingError::AddOverflow2)?;
         self.data::<Data>().lp_tokens.push(lp_token);
@@ -96,8 +95,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .ok_or(FarmingError::PoolNotFound)?;
         self._update_all_pools()?;
         self.data::<Data>().total_alloc_point = self
-            .data::<Data>()
-            .total_alloc_point
+            .get_total_alloc_point()
             .checked_sub(pool_info.alloc_point)
             .ok_or(FarmingError::SubUnderflow7)?
             .checked_add(alloc_point)
@@ -148,13 +146,12 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                 .ok_or(FarmingError::AddOverflow8)?;
         }
 
-        let pending = (user_info
-            .amount
-            .checked_mul(acc_arsw_per_share)
-            .ok_or(FarmingError::MulOverflow9)?
-            / ACC_ARSW_PRECISION)
-            .checked_add_signed(-user_info.reward_debt)
-            .ok_or(FarmingError::AddOverflow14)?;
+        let pending = <U256 as TryInto<u128>>::try_into(
+            casted_mul(user_info.amount, acc_arsw_per_share) / ACC_ARSW_PRECISION,
+        )
+        .map_err(|_| FarmingError::CastTou128Error8)?
+        .checked_add_signed(-user_info.reward_debt)
+        .ok_or(FarmingError::AddOverflow14)?;
 
         Ok(pending)
     }
@@ -240,7 +237,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         let user_amount = user
             .amount
             .checked_sub(amount)
-            .ok_or(FarmingError::AddOverflow12)?;
+            .ok_or(FarmingError::SubUnderflow12)?;
 
         self.data::<Data>().user_info.insert(
             &(pool_id, to),
@@ -273,22 +270,19 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .get_user_info(pool_id, caller)
             .ok_or(FarmingError::UserNotFound)?;
 
-        let accumulated_arsw = user
-            .amount
-            .checked_mul(pool.acc_arsw_per_share)
-            .ok_or(FarmingError::MulOverflow12)?
-            / ACC_ARSW_PRECISION;
+        let accumulated_arsw = <U256 as TryInto<i128>>::try_into(
+            casted_mul(user.amount, pool.acc_arsw_per_share) / ACC_ARSW_PRECISION,
+        )
+        .map_err(|_| FarmingError::CastToi128Error8)?;
 
         let pending_arsw = accumulated_arsw
-            .checked_add_signed(-user.reward_debt)
-            .ok_or(FarmingError::AddOverflow13)?;
+            .checked_sub(user.reward_debt)
+            .ok_or(FarmingError::SubUnderflow11)? as u128;
 
         self.data::<Data>().user_info.insert(
             &(pool_id, to),
             &UserInfo {
-                reward_debt: accumulated_arsw
-                    .try_into()
-                    .map_err(|_| FarmingError::CastToi128Error5)?,
+                reward_debt: accumulated_arsw,
                 ..user
             },
         );
@@ -333,23 +327,19 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .get_user_info(pool_id, caller)
             .ok_or(FarmingError::UserNotFound)?;
 
-        let accumulated_arsw = user
-            .amount
-            .checked_mul(pool.acc_arsw_per_share)
-            .ok_or(FarmingError::MulOverflow13)?
-            / ACC_ARSW_PRECISION;
+        let accumulated_arsw =
+            casted_mul(user.amount, pool.acc_arsw_per_share) / ACC_ARSW_PRECISION;
 
-        let pending_arsw = accumulated_arsw
+        let pending_arsw = <U256 as TryInto<u128>>::try_into(accumulated_arsw)
+            .map_err(|_| FarmingError::CastTou128Error8)?
             .checked_add_signed(-user.reward_debt)
             .ok_or(FarmingError::AddOverflow15)?;
 
-        let user_reward_debt = accumulated_arsw
-            .checked_sub(
-                (casted_mul(amount, pool.acc_arsw_per_share) / ACC_ARSW_PRECISION)
-                    .try_into()
-                    .map_err(|_| FarmingError::CastTou128Error7)?,
-            )
-            .ok_or(FarmingError::SubUnderflow10)?;
+        let user_reward_debt: i128 = accumulated_arsw
+            .checked_sub(casted_mul(amount, pool.acc_arsw_per_share) / ACC_ARSW_PRECISION)
+            .ok_or(FarmingError::SubUnderflow10)?
+            .try_into()
+            .map_err(|_| FarmingError::CastTou128Error7)?;
 
         let user_amount = user
             .amount
@@ -359,15 +349,13 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         self.data::<Data>().user_info.insert(
             &(pool_id, to),
             &UserInfo {
-                reward_debt: user_reward_debt
-                    .try_into()
-                    .map_err(|_| FarmingError::CastToi128Error7)?,
+                reward_debt: user_reward_debt,
                 amount: user_amount,
             },
         );
 
         PSP22Ref::transfer(
-            &mut self.data::<Data>().arsw_token,
+            &self.data::<Data>().arsw_token,
             to,
             pending_arsw,
             Vec::new(),
@@ -387,8 +375,8 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
             .ok_or(FarmingError::LpTokenNotFound)?;
         PSP22Ref::transfer(&lp_token, to, amount, Vec::new())?;
 
-        self._emit_harvest_event(caller, pool_id, pending_arsw);
         self._emit_withdraw_event(caller, pool_id, amount, to);
+        self._emit_harvest_event(caller, pool_id, pending_arsw);
         Ok(())
     }
 
@@ -472,7 +460,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                     .ok_or(FarmingError::AddOverflow8)?;
             }
             pool.last_reward_block = current_block;
-            self.data::<Data>().pool_info.insert(pool_id, &pool);
+            self.data::<Data>().pool_info.insert(&pool_id, &pool);
 
             self._emit_log_update_pool_event(
                 pool_id,
@@ -491,17 +479,16 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         lp_supply: Balance,
     ) -> Result<Balance, FarmingError> {
         ensure!(lp_supply > 0, FarmingError::LpSupplyIsZero);
-        let last_reward_block_period = self._get_period(pool_info.last_reward_block)?;
-        let current_period = self._get_period(Self::env().block_number())?;
-
+        let current_period = self._get_period(current_block)?;
         let mut arsw_reward: Balance = 0;
         let mut last_block = pool_info.last_reward_block;
+        let last_reward_block_period = self._get_period(last_block)?;
         let mut period = last_reward_block_period;
+        let total_alloc_point = self.get_total_alloc_point();
         while period <= current_period {
             if period > MAX_PERIOD {
                 break
             }
-            let total_alloc_point: u32 = self.data::<Data>().total_alloc_point;
             if current_block <= self._period_max(period)? {
                 arsw_reward = arsw_reward
                     .checked_add(
@@ -509,9 +496,8 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                             (current_block
                                 .checked_sub(last_block)
                                 .ok_or(FarmingError::SubUnderflow4)?
-                                as u128)
-                                .checked_add(pool_info.alloc_point as u128)
-                                .ok_or(FarmingError::MulOverflow4)?,
+                                * pool_info.alloc_point)
+                                .into(),
                             self._arsw_per_block(period)?,
                         )
                         .checked_div(total_alloc_point.into())
@@ -524,11 +510,12 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                 arsw_reward = arsw_reward
                     .checked_add(
                         casted_mul(
-                            (self._period_max(period)? as u128)
+                            (self
+                                ._period_max(period)?
                                 .checked_sub(last_block.into())
                                 .ok_or(FarmingError::SubUnderflow5)?
-                                .checked_mul(pool_info.alloc_point.into())
-                                .ok_or(FarmingError::MulOverflow6)?,
+                                * pool_info.alloc_point)
+                                .into(),
                             self._arsw_per_block(period)? as u128,
                         )
                         .checked_div(total_alloc_point.into())
@@ -543,11 +530,11 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
 
             period += 1;
         }
-        Ok(casted_mul(arsw_reward, ACC_ARSW_PRECISION)
-            .checked_div(lp_supply.into())
-            .ok_or(FarmingError::DivByZero3)?
-            .try_into()
-            .map_err(|_| FarmingError::CastTou128Error6)?)
+        Ok(
+            (casted_mul(arsw_reward, ACC_ARSW_PRECISION) / U256::from(lp_supply))
+                .try_into()
+                .map_err(|_| FarmingError::CastTou128Error6)?,
+        )
     }
 
     fn _get_period(&self, block_number: u32) -> Result<u32, FarmingError> {
@@ -578,15 +565,14 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         if period > MAX_PERIOD {
             return Ok(0)
         }
-        Ok(casted_mul(
+        Ok((casted_mul(
             FIRST_PERIOD_REWERD_SUPPLY,
             9u128
                 .checked_pow(period)
-                .ok_or(FarmingError::PowOverflow1)?
-                / 10u128
-                    .checked_pow(period)
-                    .ok_or(FarmingError::PowOverflow2)?,
-        )
+                .ok_or(FarmingError::PowOverflow1)?,
+        ) / 10u128
+            .checked_pow(period)
+            .ok_or(FarmingError::PowOverflow2)?)
         .try_into()
         .map_err(|_| FarmingError::CastTou128Error5)?)
     }
