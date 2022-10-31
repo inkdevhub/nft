@@ -16,7 +16,7 @@ pub trait FarmingGetters: Storage<Data> {
     }
 
     #[ink(message)]
-    fn get_pool_infos(&self, pool_id: u32) -> Option<Pool> {
+    fn get_pool_info(&self, pool_id: u32) -> Option<Pool> {
         self.data::<Data>().pool_info.get(&pool_id)
     }
 

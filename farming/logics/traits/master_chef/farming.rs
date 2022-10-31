@@ -92,7 +92,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         overwrite: bool,
     ) -> Result<(), FarmingError> {
         let pool_info = self
-            .get_pool_infos(pool_id)
+            .get_pool_info(pool_id)
             .ok_or(FarmingError::PoolNotFound)?;
         self._update_all_pools()?;
         self.data::<Data>().total_alloc_point = self
@@ -130,7 +130,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     #[ink(message)]
     fn pending_arsw(&self, pool_id: u32, user: AccountId) -> Result<Balance, FarmingError> {
         let pool = self
-            .get_pool_infos(pool_id)
+            .get_pool_info(pool_id)
             .ok_or(FarmingError::PoolNotFound)?;
         let user_info = self
             .get_user_info(pool_id, user)
@@ -167,7 +167,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         to: AccountId,
     ) -> Result<(), FarmingError> {
         let pool = self
-            .get_pool_infos(pool_id)
+            .get_pool_info(pool_id)
             .ok_or(FarmingError::PoolNotFound)?;
         self._update_pool(pool_id)?;
         let user = self.get_user_info(pool_id, to).unwrap_or_default();
@@ -220,7 +220,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     ) -> Result<(), FarmingError> {
         ensure!(amount > 0, FarmingError::ZeroWithdrawal);
         let pool = self
-            .get_pool_infos(pool_id)
+            .get_pool_info(pool_id)
             .ok_or(FarmingError::PoolNotFound)?;
         self._update_pool(pool_id)?;
         let caller = Self::env().caller();
@@ -265,7 +265,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     #[ink(message)]
     fn harvest(&mut self, pool_id: u32, to: AccountId) -> Result<(), FarmingError> {
         let pool = self
-            .get_pool_infos(pool_id)
+            .get_pool_info(pool_id)
             .ok_or(FarmingError::PoolNotFound)?;
         self._update_pool(pool_id)?;
         let caller = Self::env().caller();
@@ -325,7 +325,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         to: AccountId,
     ) -> Result<(), FarmingError> {
         let pool = self
-            .get_pool_infos(pool_id)
+            .get_pool_info(pool_id)
             .ok_or(FarmingError::PoolNotFound)?;
         self._update_pool(pool_id)?;
         let caller = Self::env().caller();
@@ -458,7 +458,7 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
 
     fn _update_pool(&mut self, pool_id: u32) -> Result<(), FarmingError> {
         let mut pool = self
-            .get_pool_infos(pool_id)
+            .get_pool_info(pool_id)
             .ok_or(FarmingError::PoolNotFound)?;
         let current_block = Self::env().block_number();
         if current_block > pool.last_reward_block {
