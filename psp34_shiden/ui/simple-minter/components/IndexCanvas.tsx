@@ -239,7 +239,7 @@ const IndexCanvas = () => {
   return (
     <div className="text-center">
       <Header />
-      <div className="p-3 mt-2 m-auto max-w-6xl w-11/12 border-[#323943] bg-[#121923] border border-1 rounded">
+      <div className="p-2 mt-2 m-auto max-w-6xl w-11/12 border-[#323943] bg-[#121923] border border-1 rounded">
         <div className="mb-5 text-xl">Select blockchain</div>
         <button
           className="bg-[#184e9b] hover:bg-[#1964cf] hover:duration-500 text-white rounded px-4 py-2"
@@ -265,7 +265,8 @@ const IndexCanvas = () => {
         <div className="p-1 m-auto w-11/12 break-all">Last block hash: {lastBlockHash? lastBlockHash : "---"}</div>
       </div>
 
-      <div className="text-center p-2 pt-0 mt-5 m-auto max-w-6xl w-11/12 border-[#323943] bg-[#121923] border border-1 rounded">
+      <div className="text-center p-2 mt-5 m-auto max-w-6xl w-11/12 border-[#323943] bg-[#121923] border border-1 rounded">
+        <div className="mb-2 text-xl">Connect wallet</div>
         <button
             className="bg-[#184e9b] hover:bg-[#1964cf] hover:duration-500 disabled:bg-stone-700 text-white rounded px-4 py-2"
             onClick={extensionSetup}
@@ -288,7 +289,8 @@ const IndexCanvas = () => {
         <p className="p-1 m-1 break-all">actingAddress: {actingAddress}</p>
       </div>
 
-      <div className="text-center p-2 pt-0 mt-5 m-auto max-w-6xl w-11/12 border-[#323943] bg-[#121923] border border-1 rounded">
+      <div className="text-center p-2 mt-5 m-auto max-w-6xl w-11/12 border-[#323943] bg-[#121923] border border-1 rounded">
+        <div className="mb-2 text-xl">Mint NFT</div>
         <button disabled={!contractAddress}
           className="bg-[#184e9b] hover:bg-[#1964cf] hover:duration-500 disabled:bg-stone-700 text-white rounded px-4 py-2"
           onClick={execMint}
@@ -301,9 +303,9 @@ const IndexCanvas = () => {
         <p className="p-1 m-1 break-all">Status: {gasConsumed}</p>
       </div>
 
-      <div className="text-left p-2 pt-0 mt-5 m-auto max-w-6xl w-11/12 border-[#323943] bg-[#121923] border border-1 rounded">
-        <div className="text-center mt-4">
-          <div className="mb-3 text-xl">NFT View</div>
+      <div className="text-center p-2 mt-5 m-auto max-w-6xl w-11/12 border-[#323943] bg-[#121923] border border-1 rounded">
+        <div className="mb-2 text-xl">NFT View</div>
+        <div className="text-center">
           <button disabled={!contractAddress || !tokenId}
             className="bg-[#184e9b] hover:bg-[#1964cf] hover:duration-500 disabled:bg-stone-700 text-white rounded px-4 py-2"
             onClick={getTokenURI}
@@ -329,7 +331,7 @@ const IndexCanvas = () => {
           </div>
         </div>
 
-        <div className="m-2 mt-4 p-2 bg-[#020913] rounded">
+        <div className="text-left m-2 mt-4 p-2 bg-[#020913] rounded">
           <p className="p-1 m-1 break-all">Result: {result}</p>
           <p className="p-1 m-1 break-all">OutputData: {outcome}</p>
           <p className="p-1 m-1">TokenId: {tokenId}</p>
