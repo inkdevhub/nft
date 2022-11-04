@@ -493,11 +493,11 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                 arsw_reward = arsw_reward
                     .checked_add(
                         casted_mul(
-                            (current_block
+                            current_block
                                 .checked_sub(last_block)
                                 .ok_or(FarmingError::SubUnderflow4)?
-                                * pool_info.alloc_point)
-                                .into(),
+                                as u128
+                                * pool_info.alloc_point as u128,
                             self._arsw_per_block(period)?,
                         )
                         .checked_div(total_alloc_point.into())
@@ -510,12 +510,11 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
                 arsw_reward = arsw_reward
                     .checked_add(
                         casted_mul(
-                            (self
-                                ._period_max(period)?
+                            self._period_max(period)?
                                 .checked_sub(last_block.into())
                                 .ok_or(FarmingError::SubUnderflow5)?
-                                * pool_info.alloc_point)
-                                .into(),
+                                as u128
+                                * pool_info.alloc_point as u128,
                             self._arsw_per_block(period)? as u128,
                         )
                         .checked_div(total_alloc_point.into())
