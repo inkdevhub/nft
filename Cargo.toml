@@ -3,10 +3,10 @@ members = [
     "uniswap-v2/contracts/**",
     "farming/contracts/**",
 #    "flipper/flipper/contracts/*" <- uncomment this if you want to use flipper
+    "psp34_shiden/contracts/shiden34",
 ]
 
 exclude = [
     "uniswap-v2/logics",
     "farming/logics",
-    "psp34_shiden/contracts/shiden34"
 ]
