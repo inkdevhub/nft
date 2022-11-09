@@ -6,7 +6,7 @@ use ink_lang as ink;
 mod ensubdomainfactory {
     #[ink(storage)]
     pub struct EnsSubdomainFactory {
-        owner: AccountId;
+        owner: AccountId,
         locked: bool;
     }
     #[ink(event)]
