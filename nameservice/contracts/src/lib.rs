@@ -54,7 +54,7 @@ mod ensubdomainfactory {
             let caller = Self::env().caller();
             assert_eq!(self.owner, caller, "Only owner can create subdomains");
             assert_eq!(self.locked, false, "Domain transfers are locked");
-            let subdomainHash = self.namehash(subdomain, domain);
+            let subdomain_hash = self.namehash(subdomain, domain);
             let subdomain_owner = self.getOwner(subdomainHash);
             assert_eq!(subdomainOwner, AccountId::from([0x0; 32]), "Subdomain already exists");
             self.setSubdomainOwner(subdomainHash, caller);
