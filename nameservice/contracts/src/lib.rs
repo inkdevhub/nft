@@ -7,7 +7,7 @@ mod ensubdomainfactory {
     #[ink(storage)]
     pub struct EnsSubdomainFactory {
         owner: AccountId,
-        locked: bool;
+        locked: bool,
     }
     #[ink(event)]
     pub struct SubdomainCreated {
