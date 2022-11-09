@@ -14,7 +14,7 @@ mod ensubdomainfactory {
         #[ink(topic)] //-> indexed
         creator: AccountId,
         owner: AccountId,
-        subdomain: vec[u8],
+        subdomain: Vec<u8>,
         domain: vec[u8],
     }
     #[ink(event)]
