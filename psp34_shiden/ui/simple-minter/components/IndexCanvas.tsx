@@ -128,7 +128,9 @@ const IndexCanvas = () => {
         console.log(`Completed at block hash #${status.asInBlock.toString()}`);
         setGasConsumed("Completed at block hash #" + status.asInBlock.toString());
         if (actingChainName === 'Local') {
-          getTotalSupply(contractAddress);
+          window.setTimeout(function(){
+            getTotalSupply(contractAddress);
+          }, 2000);
         }
       } else if (status.isFinalized) {
         console.log('finalized');
@@ -152,11 +154,13 @@ const IndexCanvas = () => {
       alert('Please select Blockchain and click "Set Blockchain" button.');
       return;
     }
-    if (address === '') {
+    let isExecGetTotalSupply = false;
+    if (address === '' && tokenIdstr === '') {
       address = viewContractAddress;
-    }
-    if (tokenIdstr === '') {
       tokenIdstr = viewTokenId;
+      isExecGetTotalSupply = true;
+      setTotalSupply('');
+      setOwnerAddress('');
     }
 
     setTokenURI('');
@@ -165,8 +169,6 @@ const IndexCanvas = () => {
     setTokenName('');
     setTokenDescription('');
     setMaxSupply('');
-    setTotalSupply('');
-    setOwnerAddress('');
 
     const contract = new ContractPromise(api, abi, address);
     const {result, output} = 
@@ -216,9 +218,13 @@ const IndexCanvas = () => {
         }
 
         setViewTokenId(tokenIdstr);
-        getOwnerOf();
         getMaxSupply(address);
-        getTotalSupply('');
+        if (isExecGetTotalSupply) {
+          getTotalSupply('');
+        }
+        window.setTimeout(function(){
+          getOwnerOf(address, tokenIdstr);
+        }, 3000);
 
       } else {
         setOutcome(outputData.toString());
@@ -245,13 +251,17 @@ const IndexCanvas = () => {
     }
   };
 
-  async function getOwnerOf() {
-    const contract = new ContractPromise(api, abi, viewContractAddress);
+  async function getOwnerOf(address: string, tokenIdstr: string) {
+    if (address === '' && tokenIdstr === '') {
+      address = viewContractAddress;
+      tokenIdstr = viewTokenId;
+    }
+    const contract = new ContractPromise(api, abi, address);
     const {result, output} = 
       await contract.query['psp34::ownerOf'](
-        viewContractAddress,
+        address,
         {value: 0, gasLimit: -1},
-        {u64: viewTokenId});
+        {u64: tokenIdstr});
     
     // The actual result from RPC as `ContractExecResult`
     console.log(result.toHuman());
@@ -296,10 +306,10 @@ console.log('setMaxSupply: ', resultStr);
   };
 
   async function getTotalSupply(address: string) {
-    let execFlg:boolean = true;
+    let isExecGetTokenURI:boolean = true;
     if (address === '') {
       address = viewContractAddress;
-      execFlg = false;
+      isExecGetTokenURI = false;
     }
     const contract = new ContractPromise(api, abi, address);
     const {result, output} = 
@@ -320,7 +330,7 @@ console.log('setMaxSupply: ', resultStr);
         setTotalSupply(resultStr);
 console.log('setTotalSupply: ', resultStr);
         setViewContractAddress(address);
-        if (execFlg) {
+        if (isExecGetTokenURI) {
           getTokenURI(address, resultStr);
         }
       } else {
