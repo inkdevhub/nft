@@ -33,7 +33,7 @@ mod ensubdomainfactory {
     pub struct ResolverUpdated {
         #[ink(topic)] //-> indexed
         previousResolver: AccountId,
-        newResolver: AccountId,
+        new_resolver: AccountId,
     }
     #[ink(event)]
     pub struct DomainTransfersLocked {
