@@ -50,7 +50,7 @@ mod ensubdomainfactory {
             }
         }
         #[ink(message)]
-        pub fn createSubdomain(&mut self, subdomain: vec[u8], domain: vec[u8]) {
+        pub fn create_subdomain(&mut self, subdomain: Vec<u8>, domain: vVec<u8>) {
             let caller = Self::env().caller();
             assert_eq!(self.owner, caller, "Only owner can create subdomains");
             assert_eq!(self.locked, false, "Domain transfers are locked");
