@@ -1,4 +1,2 @@
-pub mod data;
-pub mod events;
-pub mod farming;
-pub mod getters;
+pub mod master_chef;
+pub mod rewarder;
