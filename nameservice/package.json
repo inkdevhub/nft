@@ -1,0 +1,14 @@
+{
+  "name": "nameservice",
+  "version": "1.0.0",
+  "author": "Mar.io",
+  "license": "MIT",
+  "scripts": {
+    "run-node": "swanky node start",
+    "compile": "swanky compile",
+    "deploy": "swanky deploy"
+  },
+  "dependencies": {
+    "@astar-network/swanky-cli": "0.2.0"
+  }
+}
