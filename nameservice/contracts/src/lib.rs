@@ -20,7 +20,7 @@ mod ensubdomainfactory {
     #[ink(event)]
     pub struct OwnershipTransferred {
         #[ink(topic)] //-> indexed
-        previousOwner: AccountId,
+        previous_owner: AccountId,
         newOwner: AccountId,
     }
     #[ink(event)]
