@@ -128,7 +128,7 @@ impl<
                 .integer_sqrt()
                 .checked_sub(MINIMUM_LIQUIDITY)
                 .ok_or(PairError::SubUnderFlow3)?;
-            self._mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
+            self._mint_to(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
         } else {
             let liquidity_1 = amount_0
                 .checked_mul(total_supply)
@@ -145,7 +145,7 @@ impl<
 
         ensure!(liquidity > 0, PairError::InsufficientLiquidityMinted);
 
-        self._mint(to, liquidity)?;
+        self._mint_to(to, liquidity)?;
 
         self._update(balance_0, balance_1, reserves.0, reserves.1)?;
 
@@ -427,7 +427,7 @@ impl<T: Storage<data::Data> + Storage<psp22::Data>> Internal for T {
                         .checked_div(denominator)
                         .ok_or(PairError::DivByZero5)?;
                     if liquidity > 0 {
-                        self._mint(fee_to, liquidity)?;
+                        self._mint_to(fee_to, liquidity)?;
                     }
                 }
             }

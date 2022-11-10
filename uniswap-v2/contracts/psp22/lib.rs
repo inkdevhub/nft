@@ -7,11 +7,13 @@ pub mod token {
         EmitEvent,
         Env,
     };
-    use ink_prelude::string::String;
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::psp22::extensions::metadata::*,
-        traits::Storage,
+        traits::{
+            Storage,
+            String,
+        },
     };
 
     #[ink(event)]
@@ -76,7 +78,7 @@ pub mod token {
                 instance.metadata.symbol = Some(String::from("UNI"));
                 instance.metadata.decimals = 18;
                 instance
-                    ._mint(instance.env().caller(), total_supply)
+                    ._mint_to(instance.env().caller(), total_supply)
                     .expect("Should mint");
             })
         }

@@ -1,7 +1,7 @@
 import {getWallet, setupContract} from './helper'
 import { expect } from "chai";
 import { encodeAddress } from "@polkadot/keyring"
-import * as BN from "bn.js";
+import BN from "bn.js";
 
 describe('FACTORY', () => {
     async function setup() {
@@ -40,15 +40,15 @@ describe('FACTORY', () => {
         const zero_address = "0x0000000000000000000000000000000000000000000000000000000000000000"
         await expect(contract.query["factory::feeTo"]()).to.eventually.have.property('output').to.equal(encodeAddress(zero_address))
         await expect(contract.query["factory::feeToSetter"]()).to.eventually.have.property('output').to.equal(wallet.address)
-        await expect(contract.query["factory::allPairLength"]()).to.eventually.have.property('output').to.equal(0)
+        await expect(contract.query["factory::allPairsLength"]()).to.eventually.have.property('output').to.equal(0)
     })
 
     it('create pair', async () => {
         const { contract, token_1, token_2 } = await setup_psp22()
 
-        await expect(contract.query["factory::allPairLength"]()).to.eventually.have.property('output').to.equal(0)
+        await expect(contract.query["factory::allPairsLength"]()).to.eventually.have.property('output').to.equal(0)
         await expect(contract.tx["factory::createPair"](token_1.address, token_2.address)).to.eventually.be.fulfilled
-        await expect(contract.query["factory::allPairLength"]()).to.eventually.have.property('output').to.equal(1)
+        await expect(contract.query["factory::allPairsLength"]()).to.eventually.have.property('output').to.equal(1)
     })
 
     it('set fee', async () => {

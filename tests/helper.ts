@@ -1,9 +1,9 @@
 import {artifacts, network, patract} from 'redspot'
-import * as BN from 'bn.js';
 import {createSigner} from "redspot/provider";
 import { Keyring } from '@polkadot/keyring'
 const {api} = network
 import { buildTx } from '@redspot/patract/buildTx'
+import BN from "bn.js";
 
 const {getContractFactory, getRandomSigner} = patract
 const {getSigners} = network

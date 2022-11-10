@@ -23,9 +23,8 @@
     "eslint-plugin-promise": "^5.1.0",
     "redspot": "^0.13.6",
     "ts-node": "^10.8.0",
-    "@supercolony/typechain-compiler": "0.1.10",
-    "@supercolony/typechain-polkadot": "0.4.7",
-    "@supercolony/typechain-types": "0.0.10",
+    "@supercolony/typechain-compiler": "^0.5.1-beta.1",
+    "@supercolony/typechain-types": "^0.0.16",
     "patch-package": "^6.4.7"
   },
   "scripts": {

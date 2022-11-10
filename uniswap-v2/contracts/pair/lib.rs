@@ -105,7 +105,7 @@ pub mod pair {
 
     impl psp22::Internal for PairContract {
         // in uniswapv2 no check for zero account
-        fn _mint(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
+        fn _mint_to(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
             let mut new_balance = self._balance_of(&account);
             new_balance += amount;
             self.psp22.balances.insert(&account, &new_balance);

@@ -7,11 +7,13 @@ pub mod wnative {
         EmitEvent,
         Env,
     };
-    use ink_prelude::string::String;
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::psp22::extensions::metadata::*,
-        traits::Storage,
+        traits::{
+            Storage,
+            String,
+        },
     };
     use uniswap_v2::impls::wnative::*;
 
