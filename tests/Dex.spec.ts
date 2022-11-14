@@ -44,7 +44,7 @@ describe('Dex spec', () => {
   let pairHash: Hash;
   let factory: Factory;
   let router: Router;
-  let [token1, token2]: Token[] = [];
+  let [token0, token1]: Token[] = [];
   let wnative: Wnative;
 
   async function setup(): Promise<void> {
@@ -68,12 +68,12 @@ describe('Dex spec', () => {
 
     const tokenAaddress = (await tokenFactory.new(totalSupply)).address;
     const tokenBaddress = (await tokenFactory.new(totalSupply)).address;
-    const [token1Address, token2Address] =
+    const [token0Address, token1Address] =
       tokenAaddress > tokenBaddress
         ? [tokenBaddress, tokenAaddress]
         : [tokenAaddress, tokenBaddress];
+    token0 = new Token(token0Address, deployer, api);
     token1 = new Token(token1Address, deployer, api);
-    token2 = new Token(token2Address, deployer, api);
   }
 
   async function setupRouter(): Promise<void> {
@@ -99,29 +99,45 @@ describe('Dex spec', () => {
   it('set fee', async () => {
     await setupPsp22();
     expect((await factory.query.feeTo()).value).to.equal(zeroAddress);
-    await expect(factory.tx.setFeeTo(token1.address)).to.eventually.be.rejected;
-    await factory.withSigner(wallet).tx.setFeeTo(token1.address);
-    expect((await factory.query.feeTo()).value).to.equal(token1.address);
+    await expect(factory.tx.setFeeTo(token0.address)).to.eventually.be.rejected;
+    const { gasRequired } = await factory
+      .withSigner(wallet)
+      .query.setFeeTo(token0.address);
+    await factory
+      .withSigner(wallet)
+      .tx.setFeeTo(token0.address, { gasLimit: gasRequired });
+    expect((await factory.query.feeTo()).value).to.equal(token0.address);
   });
 
   it('set fee setter', async () => {
     expect((await factory.query.feeToSetter()).value).to.equal(wallet.address);
-    await expect(factory.tx.setFeeToSetter(token1.address)).to.eventually.be
+    await expect(factory.tx.setFeeToSetter(token0.address)).to.eventually.be
       .rejected;
-    await factory.withSigner(wallet).tx.setFeeToSetter(token1.address);
-    expect((await factory.query.feeToSetter()).value).to.equal(token1.address);
+    const { gasRequired } = await factory
+      .withSigner(wallet)
+      .query.setFeeToSetter(token0.address);
+    await factory
+      .withSigner(wallet)
+      .tx.setFeeToSetter(token0.address, { gasLimit: gasRequired });
+    expect((await factory.query.feeToSetter()).value).to.equal(token0.address);
   });
 
   it('create pair', async () => {
     expect((await factory.query.allPairsLength()).value).to.equal(0);
     const expectedAddress = (
-      await factory.query.createPair(token1.address, token2.address)
-    ).value;
+      await factory.query.createPair(token0.address, token1.address)
+    ).value.ok;
     expect(expectedAddress).not.equal(zeroAddress);
-    const result = await factory.tx.createPair(token1.address, token2.address);
+    const { gasRequired } = await factory.query.createPair(
+      token0.address,
+      token1.address,
+    );
+    const result = await factory.tx.createPair(token0.address, token1.address, {
+      gasLimit: gasRequired,
+    });
     emit(result, 'PairCreated', {
-      token0: token1.address,
-      token1: token2.address,
+      token0: token0.address,
+      token1: token1.address,
       pair: expectedAddress,
       pairLen: 1,
     });
@@ -132,16 +148,27 @@ describe('Dex spec', () => {
   it('can mint pair', async () => {
     const liqudity = 10000;
     const pairAddress = await factory.query.getPair(
+      token0.address,
       token1.address,
-      token2.address,
     );
     pair = new Pair(pairAddress.value as string, deployer, api);
-    await token1.tx.transfer(pair.address, liqudity, []);
-    await token2.tx.transfer(pair.address, liqudity, []);
+    const { gasRequired } = await token0.query.transfer(
+      pair.address,
+      liqudity,
+      [],
+    );
+    await token0.tx.transfer(pair.address, liqudity, [], {
+      gasLimit: gasRequired,
+    });
+    await token1.tx.transfer(pair.address, liqudity, [], {
+      gasLimit: gasRequired,
+    });
     expect(
       (await pair.query.balanceOf(wallet.address)).value.toNumber(),
     ).to.equal(0);
-    const result = await pair.tx.mint(wallet.address);
+    const result = await pair.tx.mint(wallet.address, {
+      gasLimit: gasRequired,
+    });
     emit(result, 'Mint', {
       sender: deployer.address,
       amount0: liqudity,
@@ -154,11 +181,16 @@ describe('Dex spec', () => {
 
   it('can swap tokens', async () => {
     const token1Amount = 1020;
-    await token1.tx.transfer(pair.address, token1Amount, []);
+    const { gasRequired } = await token0.query.transfer(pair.address, token1Amount, []);
+    await token0.tx.transfer(pair.address, token1Amount, [], {
+      gasLimit: gasRequired,
+    });
     expect(
-      (await token2.query.balanceOf(wallet.address)).value.toNumber(),
+      (await token1.query.balanceOf(wallet.address)).value.toNumber(),
     ).to.equal(0);
-    const result = await pair.tx.swap(0, 900, wallet.address);
+    const result = await pair.tx.swap(0, 900, wallet.address, {
+      gasLimit: gasRequired,
+    });
     emit(result, 'Swap', {
       sender: deployer.address,
       amount0In: token1Amount,
@@ -168,17 +200,24 @@ describe('Dex spec', () => {
       to: wallet.address,
     });
     expect(
-      (await token2.query.balanceOf(wallet.address)).value.toNumber(),
+      (await token1.query.balanceOf(wallet.address)).value.toNumber(),
     ).to.equal(900);
   });
 
   it('can burn LP token', async () => {
-    const beforeToken1Balance = (await token1.query.balanceOf(wallet.address))
+    const beforeToken1Balance = (await token0.query.balanceOf(wallet.address))
       .value.rawNumber;
-    const beforeToken2Balance = (await token2.query.balanceOf(wallet.address))
+    const beforeToken2Balance = (await token1.query.balanceOf(wallet.address))
       .value.rawNumber;
-    await pair.withSigner(wallet).tx.transfer(pair.address, 2000, []);
-    const result = await pair.withSigner(wallet).tx.burn(wallet.address);
+    const { gasRequired } = await pair
+      .withSigner(wallet)
+      .query.transfer(pair.address, 2000, []);
+    await pair
+      .withSigner(wallet)
+      .tx.transfer(pair.address, 2000, [], { gasLimit: gasRequired });
+    const result = await pair
+      .withSigner(wallet)
+      .tx.burn(wallet.address, { gasLimit: gasRequired });
     const lockedToken1Balance = 2204;
     const lockedToken2Balance = 1820;
     emit(result, 'Burn', {
@@ -188,12 +227,12 @@ describe('Dex spec', () => {
       to: wallet.address,
     });
     expect(
-      (await token1.query.balanceOf(wallet.address)).value.rawNumber.sub(
+      (await token0.query.balanceOf(wallet.address)).value.rawNumber.sub(
         beforeToken1Balance,
       ),
     ).to.eql(new BN(lockedToken1Balance));
     expect(
-      (await token2.query.balanceOf(wallet.address)).value.rawNumber.sub(
+      (await token1.query.balanceOf(wallet.address)).value.rawNumber.sub(
         beforeToken2Balance,
       ),
     ).to.eql(new BN(lockedToken2Balance));
@@ -202,79 +241,121 @@ describe('Dex spec', () => {
   it('can add liqudity via router', async () => {
     await setupRouter();
     const deadline = '111111111111111111';
-    await token1.tx.approve(router.address, 10000);
+    const { gasRequired } = await token0.query.approve(router.address, 10000);
+    await token0.tx.approve(router.address, 10000, {
+      gasLimit: gasRequired,
+    });
     await router.tx.addLiquidityNative(
-      token1.address,
+      token0.address,
       10000,
       10000,
       10000,
       deployer.address,
       deadline,
-      { value: 10000 },
+      {
+        gasLimit: gasRequired,
+        value: 10000,
+      },
     );
     expect((await factory.query.allPairsLength()).value).to.equal(2);
   });
 
   it('can swapExactNativeForTokens via router', async () => {
     const deadline = '111111111111111111';
-    await router.tx.swapExactNativeForTokens(
+    const { gasRequired } = await router.query.swapExactNativeForTokens(
       1000,
-      [wnative.address, token1.address],
+      [wnative.address, token0.address],
       wallet.address,
       deadline,
-      { value: 10000 },
+      {
+        value: 10000,
+      },
+    );
+    await router.tx.swapExactNativeForTokens(
+      1000,
+      [wnative.address, token0.address],
+      wallet.address,
+      deadline,
+      {
+        gasLimit: gasRequired,
+        value: 10000,
+      },
     );
   });
 
   it('can swapNativeForExactTokens via router', async () => {
     const deadline = '111111111111111111';
-    await router.tx.swapNativeForExactTokens(
+    const { gasRequired } = await router.query.swapNativeForExactTokens(
       1000,
-      [wnative.address, token1.address],
+      [wnative.address, token0.address],
       wallet.address,
       deadline,
-      { value: 10000 },
+      {
+        value: 10000,
+      },
+    );
+    await router.tx.swapNativeForExactTokens(
+      1000,
+      [wnative.address, token0.address],
+      wallet.address,
+      deadline,
+      {
+        gasLimit: gasRequired,
+        value: 10000,
+      },
     );
   });
 
   it('can swapExactTokensForTokens via router', async () => {
     const deadline = '111111111111111111';
-    await wnative.tx.deposit({ value: 10000 });
-    await wnative.tx.approve(router.address, 10000);
+    const { gasRequired } = await wnative.query.deposit({ value: 10000 });
+    await wnative.tx.deposit({ gasLimit: gasRequired, value: 10000 });
+    await wnative.tx.approve(router.address, 10000, {
+      gasLimit: gasRequired,
+    });
     await router.tx.swapExactTokensForTokens(
       10000,
       1000,
-      [wnative.address, token1.address],
+      [wnative.address, token0.address],
       wallet.address,
       deadline,
+      { gasLimit: gasRequired },
     );
   });
 
   it('can swapTokensForExactTokens via router', async () => {
     const deadline = '111111111111111111';
-    await wnative.tx.deposit({ value: 100000 });
-    await wnative.tx.approve(router.address, 100000);
+    const { gasRequired } = await wnative.query.deposit({ value: 100000 });
+    await wnative.tx.deposit({ gasLimit: gasRequired, value: 100000 });
+    await wnative.tx.approve(router.address, 100000, {
+      gasLimit: gasRequired,
+    });
     await router.query.swapTokensForExactTokens(
       1000,
       100000,
-      [wnative.address, token1.address],
+      [wnative.address, token0.address],
       wallet.address,
       deadline,
+      { gasLimit: gasRequired },
     );
   });
 
   it('can add liqudity more via router', async () => {
     const deadline = '111111111111111111';
-    await token1.tx.approve(router.address, 10000);
+    const { gasRequired } = await token0.query.approve(router.address, 10000);
+    await token0.tx.approve(router.address, 10000, {
+      gasLimit: gasRequired,
+    });
     const balance = await getBalance(deployer.address);
     await router.tx.addLiquidityNative(
-      token1.address,
+      token0.address,
       10000,
       0,
       0,
       deployer.address,
       deadline,
       {
+        gasLimit: gasRequired,
         value: 1000000000000000,
       },
     );
@@ -285,23 +366,29 @@ describe('Dex spec', () => {
 
   it('can remove liqudity via router', async () => {
     const deadline = '111111111111111111';
-    await token1.tx.approve(router.address, 10000);
+    const { gasRequired } = await token0.query.approve(router.address, 10000);
+    await token0.tx.approve(router.address, 10000, {
+      gasLimit: gasRequired,
+    });
     const lpToken = new Pair(
       (
-        await factory.query.getPair(wnative.address, token1.address)
+        await factory.query.getPair(wnative.address, token0.address)
       ).value.toString(),
       deployer,
       api,
     );
-    await lpToken.tx.approve(router.address, 10000);
+    await lpToken.tx.approve(router.address, 10000, {
+      gasLimit: gasRequired,
+    });
     const balance = await getBalance(wallet.address);
     await router.tx.removeLiquidityNative(
-      token1.address,
+      token0.address,
       10000,
       0,
       0,
       wallet.address,
       deadline,
+      { gasLimit: gasRequired },
     );
     const afterBalance = await getBalance(wallet.address);
     expect(afterBalance.sub(balance).toNumber()).gt(10000);
