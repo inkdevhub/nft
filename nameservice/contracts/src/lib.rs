@@ -8,13 +8,14 @@ mod ensubdomainfactory {
     pub struct EnsSubdomainFactory {
         owner: AccountId,
         locked: bool,
+        ethname_hash = 0x00,
     }
     #[ink(event)]
     pub struct SubdomainCreated {
         #[ink(topic)] //-> indexed
-        creator: AccountId,
-        owner: AccountId,
-        subdomain: Vec<u8>,
+        creator: AccountId, 
+        owner: AccountId, 
+        subdomain: vec[u8], 
         domain: vec[u8],
     }
     #[ink(event)]
@@ -26,18 +27,20 @@ mod ensubdomainfactory {
     #[ink(event)]
     pub struct RegistryUpdated {
         #[ink(topic)] //-> indexed
-        previousRegistry: AccountId,
-        newRegistry: AccountId,
+        previous_registry: AccountId,
+        new_registry: AccountId,
     }
     #[ink(event)]
     pub struct ResolverUpdated {
         #[ink(topic)] //-> indexed
-        previousResolver: AccountId,
+        previous_resolver: AccountId,
         new_resolver: AccountId,
     }
     #[ink(event)]
     pub struct DomainTransfersLocked {
         #[ink(topic)] //-> indexed
+        caller: AccountId,
+        locked: bool,
     }
 
     impl EnsSubdomainFactory {
@@ -50,14 +53,27 @@ mod ensubdomainfactory {
             }
         }
         #[ink(message)]
-        pub fn create_subdomain(&mut self, subdomain: Vec<u8>, domain: vVec<u8>) {
+        pub fn set_subdomain_owner(&mut self, subdomain: Vec<u8>, domain: Vec<u8>, owner: AccountId) {
+            assert_eq!(self.env().caller(), self.owner);
+            assert_eq!(self.locked, false);
+            let subdomain_hash = self.namehash(subdomain, domain);
+            //call setOwner on resolver
+            self.env().emit_event(SubdomainCreated {
+                creator: self.env().caller(),
+                owner: owner,
+                subdomain: subdomain,
+                domain: domain,
+            });
+        }
+        #[ink(message)]
+        pub fn create_subdomain(&mut self, subdomain: Vec<u8>, domain: Vec<u8>) {
             let caller = Self::env().caller();
             assert_eq!(self.owner, caller, "Only owner can create subdomains");
             assert_eq!(self.locked, false, "Domain transfers are locked");
             let subdomain_hash = self.namehash(subdomain, domain);
-            let subdomain_owner = self.getOwner(subdomainHash);
-            assert_eq!(subdomainOwner, AccountId::from([0x0; 32]), "Subdomain already exists");
-            self.setSubdomainOwner(subdomainHash, caller);
+            let subdomain_owner = self.getOwner(subdomain_hash);
+            assert_eq!(subdomain_owner, AccountId::from([0x0; 32]), "Subdomain already exists");
+            self.set_subdomain_owner(subdomain_hash, caller);
             self.env().emit_event(SubdomainCreated {
                 creator: caller,
                 owner: caller,
@@ -66,44 +82,47 @@ mod ensubdomainfactory {
             });
         }
         #[ink(message)]
-        pub fn transferSubdomain(&mut self, subdomain: vec[u8], domain: vec[u8], newOwner: AccountId) {
+        pub fn transfer_subdomain(&mut self, subdomain: Vec<u8>, domain: Vec<u8>, new_owner: AccountId) {
             let caller = Self::env().caller();
             assert_eq!(self.owner, caller, "Only owner can transfer subdomains");
             assert_eq!(self.locked, false, "Domain transfers are locked");
-            let subdomainHash = self.namehash(subdomain, domain);
-            let subdomainOwner = self.getOwner(subdomainHash);
-            assert_eq!(subdomainOwner, caller, "Only subdomain owner can transfer subdomain");
-            self.setSubdomainOwner(subdomainHash, newOwner);
+            let subdomain_hash = self.namehash(subdomain, domain);
+            let subdomain_owner = self.getOwner(subdomain_hash);
+            assert_eq!(subdomain_owner, caller, "Only subdomain owner can transfer subdomain");
+            self.set_subdomain_owner(subdomain_hash, new_owner);
             self.env().emit_event(SubdomainCreated {
                 creator: caller,
-                owner: newOwner,
+                owner: new_owner,
                 subdomain: subdomain,
                 domain: domain,
             });
         }
         #[ink(message)]
-        pub fn transferOwnership(&mut self, newOwner: AccountId) {
+        pub fn transfer_ownership(&mut self, new_owner: AccountId) {
             let caller = Self::env().caller();
             assert_eq!(self.owner, caller, "Only owner can transfer ownership");
-            self.owner = newOwner;
+            self.owner = new_owner;
             self.env().emit_event(OwnershipTransferred {
                 previousOwner: caller,
                 newOwner: newOwner,
             });
         }
         #[ink(message)]
-        pub fn lockDomainTransfers(&mut self) {
+        pub fn lock_domain_transfers(&mut self) {
             let caller = Self::env().caller();
             assert_eq!(self.owner, caller, "Only owner can lock domain transfers");
             self.locked = true;
-            self.env().emit_event(DomainTransfersLocked {});
+            self.env().emit_event(DomainTransfersLocked {
+                caller: caller,
+                locked: self.locked
+            });
         }
         #[ink(message)]
-        pub fn transferContractOwnership(&mut self, newOwner: AccountId) {
+        pub fn transfer_contract_ownership(&mut self, new_owner: AccountId) {
             let caller = Self::env().caller();
             assert_eq!(self.owner, caller, "Only owner can transfer contract ownership");
-            self.env().transfer(newOwner, self.env().balance());
+            self.env().transfer(new_owner, self.env().balance());
         }
     }
-
+    
 }
