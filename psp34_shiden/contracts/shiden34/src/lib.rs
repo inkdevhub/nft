@@ -206,16 +206,16 @@ pub mod shiden34 {
         fn init_works() {
             let sh34 = init();
             assert_eq!(
-                sh34.get_attribute(Id::U8(0), String::from("name").into_bytes()),
-                Some(String::from("Shiden34").into_bytes())
+                sh34.get_attribute(Id::U8(0), String::from("name")),
+                Some(String::from("Shiden34"))
             );
             assert_eq!(
-                sh34.get_attribute(Id::U8(0), String::from("symbol").into_bytes()),
-                Some(String::from("SH34").into_bytes())
+                sh34.get_attribute(Id::U8(0), String::from("symbol")),
+                Some(String::from("SH34"))
             );
             assert_eq!(
-                sh34.get_attribute(Id::U8(0), String::from("baseUri").into_bytes()),
-                Some(String::from(BASE_URI).into_bytes())
+                sh34.get_attribute(Id::U8(0), String::from("baseUri")),
+                Some(String::from(BASE_URI))
             );
             assert_eq!(sh34.max_supply, MAX_SUPPLY);
             assert_eq!(sh34.price_per_mint, PRICE);
@@ -286,7 +286,7 @@ pub mod shiden34 {
             );
             assert_eq!(
                 sh34.mint_for(accounts.bob, num_of_mints),
-                Err(Custom("CollectionFullOrLocked"))
+                Err(Custom("CollectionFullOrLocked".into()))
             );
         }
 
@@ -303,12 +303,12 @@ pub mod shiden34 {
             );
             assert_eq!(
                 sh34.mint_for(accounts.bob, num_of_mints),
-                Err(Custom("BadMintValue"))
+                Err(Custom("BadMintValue".into()))
             );
             test::set_value_transferred::<ink_env::DefaultEnvironment>(
                 PRICE * num_of_mints as u128 - 1,
             );
-            assert_eq!(sh34.mint_next(), Err(Custom("BadMintValue")));
+            assert_eq!(sh34.mint_next(), Err(Custom("BadMintValue".into())));
             assert_eq!(sh34.total_supply(), 0);
         }
 
@@ -322,7 +322,7 @@ pub mod shiden34 {
             assert!(sh34.mint_next().is_ok());
             assert_eq!(
                 sh34.token_uri(1),
-                Ok(BASE_URI.to_owned() + &String::from("1.json"))
+                Ok(String::from(BASE_URI.to_owned() + "1.json"))
             );
             // return error if request is for not yet minted token
             assert_eq!(sh34.token_uri(42), Err(TokenNotExists));
@@ -342,15 +342,15 @@ pub mod shiden34 {
             let mut sh34 = init();
 
             set_sender(accounts.alice);
-            assert!(sh34.set_base_uri(NEW_BASE_URI).is_ok());
+            assert!(sh34.set_base_uri(NEW_BASE_URI.into()).is_ok());
             assert_eq!(
-                sh34.get_attribute(Id::U8(0), String::from("baseUri").into_bytes()),
-                Some(String::from(NEW_BASE_URI).into_bytes())
+                sh34.get_attribute(Id::U8(0), String::from("baseUri")),
+                Some(String::from(NEW_BASE_URI))
             );
             set_sender(accounts.bob);
             assert_eq!(
-                sh34.set_base_uri("shallFail"),
-                Err(Custom("O::CallerIsNotOwner"))
+                sh34.set_base_uri("shallFail".into()),
+                Err(Custom("O::CallerIsNotOwner".into()))
             );
         }
 
@@ -367,10 +367,10 @@ pub mod shiden34 {
             sh34.last_token_id = max_supply - 1;
 
             // check case when last_token_id.add(mint_amount) if more than u64::MAX
-            assert_eq!(sh34.check_amount(3), Err(Custom("CollectionFullOrLocked")));
+            assert_eq!(sh34.check_amount(3), Err(Custom("CollectionFullOrLocked".into())));
 
             // check case when mint_amount is 0
-            assert_eq!(sh34.check_amount(0), Err(Custom("CannotMintZeroTokens")));
+            assert_eq!(sh34.check_amount(0), Err(Custom("CannotMintZeroTokens".into())));
         }
 
         #[ink::test]
@@ -388,7 +388,7 @@ pub mod shiden34 {
             let mint_amount = u64::MAX;
             assert_eq!(
                 sh34.check_value(transferred_value, mint_amount),
-                Err(Custom("BadMintValue"))
+                Err(Custom("BadMintValue".into()))
             );
         }
 
