@@ -118,7 +118,7 @@ pub mod wnative {
             let mut wnative_contract = create_contract(1000);
             assert_eq!(get_balance(wnative_contract.env().account_id()), 1000);
             assert_eq!(
-                wnative_contract._mint(accounts.alice, 1000),
+                wnative_contract._mint_to(accounts.alice, 1000),
                 Ok(()),
                 "mint failed"
             );

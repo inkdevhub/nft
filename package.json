@@ -40,7 +40,7 @@
     "postinstall": "patch-package"
   },
   "resolutions": {
-    "@polkadot/api": "^8.6.2",
-    "@polkadot/api-contract": "^8.6.2"
+    "@polkadot/api": "^9.6.1",
+    "@polkadot/api-contract": "^9.6.1"
   }
 }
