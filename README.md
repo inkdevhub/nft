@@ -9,7 +9,7 @@ contributions are welcome:
 
 ## dApps
 #### Uniswap-V2 - DEX
-This folder contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) + [uniswap-v2 periphery](https://github.com/Uniswap/v2-periphery) & its tests. It uses [ink! 3.3.0](https://github.com/paritytech/ink/tree/v3.3.0) & [Openbrush 2.2.0](https://github.com/Supercolony-net/openbrush-contracts/tree/v2.2.0)
+This folder contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) + [uniswap-v2 periphery](https://github.com/Uniswap/v2-periphery) & its tests. It uses latest [ink! 3.4.0](https://github.com/paritytech/ink/tree/v3.4.0) & [Openbrush 2.3.0](https://github.com/Supercolony-net/openbrush-contracts/tree/v2.3.0)
 The UI template is in active development and will be public in January 23
 
 ### Farming
