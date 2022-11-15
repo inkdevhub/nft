@@ -7,6 +7,7 @@ use openbrush::{
     traits::{
         Balance,
         Storage,
+        String,
     },
 };
 
@@ -22,6 +23,6 @@ impl<T: Storage<psp22::Data> + psp22::Internal> Wnative for T {
         self._burn_from(caller, amount)?;
         Self::env()
             .transfer(caller, amount)
-            .map_err(|_| PSP22Error::Custom("WNATIVE: transfer failed".as_bytes().to_vec()))
+            .map_err(|_| PSP22Error::Custom(String::from("WNATIVE: transfer failed")))
     }
 }

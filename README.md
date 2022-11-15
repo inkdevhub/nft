@@ -28,15 +28,8 @@ The test folder contains integration tests for the contracts. Tests are made wit
 
 **Runs the tests**
 1. Run a local node \
-   Last version of polkadot *v0.9.29* introduced WeightV2 and is not compatible with redspot \
-   Please use [swanky-node v0.11](https://github.com/AstarNetwork/swanky-node/releases/tag/v0.11.0) 
-2. The end-to-end test uses redspot or typchain as a testing environment. Node version should be 14
-   - Run redspot tests
-     ```bash
-     yarn install
-     yarn test:redspot
-     ```
-   - Run typechain tests
+   Please use [swanky-node](https://github.com/AstarNetwork/swanky-node/releases) 
+2. The integration tests uses typechain. Node version should be >= 16
      ```bash
      yarn install
      yarn compile
