@@ -9,7 +9,7 @@ pub mod shiden34 {
         Env,
     };
     use ink_prelude::string::{
-        String,
+        String as PreludeString,
         ToString,
     };
     use ink_storage::traits::SpreadAllocate;
@@ -28,7 +28,10 @@ pub mod shiden34 {
             reentrancy_guard::*,
         },
         modifiers,
-        traits::Storage,
+        traits::{
+            Storage,
+            String,
+        },
     };
 
     #[ink(storage)]
@@ -52,8 +55,11 @@ pub mod shiden34 {
 
     // Section contains default implementation without any modifications
     impl PSP34 for Shiden34Contract {}
+
     impl PSP34Enumerable for Shiden34Contract {}
+
     impl PSP34Metadata for Shiden34Contract {}
+
     impl Ownable for Shiden34Contract {}
 
     #[openbrush::trait_definition]
@@ -113,21 +119,9 @@ pub mod shiden34 {
         ) -> Self {
             ink_lang::codegen::initialize_contract(|_instance: &mut Shiden34Contract| {
                 let collection_id = _instance.collection_id();
-                _instance._set_attribute(
-                    collection_id.clone(),
-                    String::from("name").into_bytes(),
-                    name.into_bytes(),
-                );
-                _instance._set_attribute(
-                    collection_id.clone(),
-                    String::from("symbol").into_bytes(),
-                    symbol.into_bytes(),
-                );
-                _instance._set_attribute(
-                    collection_id,
-                    String::from("baseUri").into_bytes(),
-                    base_uri.into_bytes(),
-                );
+                _instance._set_attribute(collection_id.clone(), String::from("name"), name);
+                _instance._set_attribute(collection_id.clone(), String::from("symbol"), symbol);
+                _instance._set_attribute(collection_id, String::from("baseUri"), base_uri);
                 _instance.max_supply = max_supply;
                 _instance.price_per_mint = price_per_mint;
                 _instance.last_token_id = 0;
@@ -169,7 +163,7 @@ pub mod shiden34 {
                 self._mint_to(caller, Id::U64(token_id))?;
                 return Ok(())
             }
-            return Err(PSP34Error::Custom("CollectionFullOrLocked".to_string()))
+            return Err(PSP34Error::Custom(String::from("CollectionFullOrLocked")))
         }
 
         /// Mint several tokens
@@ -194,11 +188,7 @@ pub mod shiden34 {
         #[ink(message)]
         #[modifiers(only_owner)]
         fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error> {
-            self._set_attribute(
-                self.collection_id(),
-                String::from("baseUri").into_bytes(),
-                uri.into_bytes(),
-            );
+            self._set_attribute(self.collection_id(), String::from("baseUri"), uri);
             Ok(())
         }
 
@@ -206,11 +196,13 @@ pub mod shiden34 {
         #[ink(message)]
         fn token_uri(&self, token_id: u64) -> Result<String, PSP34Error> {
             self._token_exists(Id::U64(token_id))?;
-            let value =
-                self.get_attribute(self.collection_id(), String::from("baseUri").into_bytes());
-            let mut token_uri = String::from_utf8(value.unwrap()).unwrap();
-            token_uri = token_uri + &token_id.to_string() + &String::from(".json");
-            Ok(token_uri)
+            let value = self.get_attribute(
+                self.collection_id(),
+                PreludeString::from("baseUri").into_bytes(),
+            );
+            let mut token_uri = PreludeString::from_utf8(value.unwrap()).unwrap();
+            token_uri = token_uri + &token_id.to_string() + &PreludeString::from(".json");
+            Ok(String::from(token_uri))
         }
 
         /// Get max supply of tokens
@@ -235,7 +227,7 @@ pub mod shiden34 {
                 .unwrap_or_default();
             self.env()
                 .transfer(self.owner(), current_balance)
-                .map_err(|_| PSP34Error::Custom("WithdrawFailed".to_string()))?;
+                .map_err(|_| PSP34Error::Custom(String::from("WithdrawFailed")))?;
             Ok(())
         }
 
@@ -247,20 +239,20 @@ pub mod shiden34 {
                 }
             }
 
-            return Err(PSP34Error::Custom("BadMintValue".to_string()))
+            return Err(PSP34Error::Custom(String::from("BadMintValue")))
         }
 
         /// Check amount of tokens to be minted
         fn _check_amount(&self, mint_amount: u64) -> Result<(), PSP34Error> {
             if mint_amount == 0 {
-                return Err(PSP34Error::Custom("CannotMintZeroTokens".to_string()))
+                return Err(PSP34Error::Custom(String::from("CannotMintZeroTokens")))
             }
             if let Some(amount) = self.last_token_id.checked_add(mint_amount) {
                 if amount <= self.max_supply {
                     return Ok(())
                 }
             }
-            return Err(PSP34Error::Custom("CollectionFullOrLocked".to_string()))
+            return Err(PSP34Error::Custom(String::from("CollectionFullOrLocked")))
         }
 
         /// Check if token is minted
@@ -274,9 +266,11 @@ pub mod shiden34 {
     mod tests {
         use super::*;
         use ink_lang as ink;
+
         const PRICE: Balance = 100_000_000_000_000_000;
         const BASE_URI: &str = "ipfs://myIpfsUri/";
         const MAX_SUPPLY: u64 = 10;
+
         use crate::shiden34::PSP34Error::*;
         use ink_env::test;
 
@@ -285,16 +279,16 @@ pub mod shiden34 {
             let sh34 = init();
             let collection_id = sh34.collection_id();
             assert_eq!(
-                sh34.get_attribute(collection_id.clone(), String::from("name").into_bytes()),
-                Some(String::from("Shiden34").into_bytes())
+                sh34.get_attribute(collection_id.clone(), String::from("name")),
+                Some(String::from("Shiden34"))
             );
             assert_eq!(
-                sh34.get_attribute(collection_id.clone(), String::from("symbol").into_bytes()),
-                Some(String::from("SH34").into_bytes())
+                sh34.get_attribute(collection_id.clone(), String::from("symbol")),
+                Some(String::from("SH34"))
             );
             assert_eq!(
-                sh34.get_attribute(collection_id, String::from("baseUri").into_bytes()),
-                Some(String::from(BASE_URI).into_bytes())
+                sh34.get_attribute(collection_id, String::from("baseUri")),
+                Some(String::from(BASE_URI))
             );
             assert_eq!(sh34.max_supply, MAX_SUPPLY);
             assert_eq!(sh34.price_per_mint, PRICE);
@@ -367,7 +361,7 @@ pub mod shiden34 {
             );
             assert_eq!(
                 sh34.mint_for(accounts.bob, num_of_mints),
-                Err(Custom("CollectionFullOrLocked".to_string()))
+                Err(Custom("CollectionFullOrLocked".into()))
             );
         }
 
@@ -384,12 +378,12 @@ pub mod shiden34 {
             );
             assert_eq!(
                 sh34.mint_for(accounts.bob, num_of_mints),
-                Err(Custom("BadMintValue".to_string()))
+                Err(Custom("BadMintValue".into()))
             );
             test::set_value_transferred::<ink_env::DefaultEnvironment>(
                 PRICE * num_of_mints as u128 - 1,
             );
-            assert_eq!(sh34.mint_next(), Err(Custom("BadMintValue".to_string())));
+            assert_eq!(sh34.mint_next(), Err(Custom("BadMintValue".into())));
             assert_eq!(sh34.total_supply(), 0);
         }
 
@@ -403,18 +397,10 @@ pub mod shiden34 {
             assert!(sh34.mint_next().is_ok());
             assert_eq!(
                 sh34.token_uri(1),
-                Ok(BASE_URI.to_owned() + &String::from("1.json"))
+                Ok(String::from(BASE_URI.to_owned() + "1.json"))
             );
             // return error if request is for not yet minted token
             assert_eq!(sh34.token_uri(42), Err(TokenNotExists));
-
-            // verify token_uri when baseUri is empty
-            set_sender(accounts.alice);
-            assert!(sh34.set_base_uri("".to_string()).is_ok());
-            assert_eq!(
-                sh34.token_uri(1),
-                Ok("".to_owned() + &String::from("1.json"))
-            );
         }
 
         #[ink::test]
@@ -431,15 +417,16 @@ pub mod shiden34 {
             let mut sh34 = init();
 
             set_sender(accounts.alice);
-            assert!(sh34.set_base_uri(NEW_BASE_URI.to_string()).is_ok());
+            let collection_id = sh34.collection_id();
+            assert!(sh34.set_base_uri(NEW_BASE_URI.into()).is_ok());
             assert_eq!(
-                sh34.get_attribute(sh34.collection_id(), String::from("baseUri").into_bytes()),
-                Some(String::from(NEW_BASE_URI).into_bytes())
+                sh34.get_attribute(collection_id, String::from("baseUri")),
+                Some(String::from(NEW_BASE_URI))
             );
             set_sender(accounts.bob);
             assert_eq!(
-                sh34.set_base_uri("shallFail".to_string()),
-                Err(Custom("O::CallerIsNotOwner".to_string()))
+                sh34.set_base_uri("shallFail".into()),
+                Err(Custom("O::CallerIsNotOwner".into()))
             );
         }
 
@@ -458,13 +445,13 @@ pub mod shiden34 {
             // check case when last_token_id.add(mint_amount) if more than u64::MAX
             assert_eq!(
                 sh34._check_amount(3),
-                Err(Custom("CollectionFullOrLocked".to_string()))
+                Err(Custom("CollectionFullOrLocked".into()))
             );
 
             // check case when mint_amount is 0
             assert_eq!(
                 sh34._check_amount(0),
-                Err(Custom("CannotMintZeroTokens".to_string()))
+                Err(Custom("CannotMintZeroTokens".into()))
             );
         }
 
@@ -483,7 +470,7 @@ pub mod shiden34 {
             let mint_amount = u64::MAX;
             assert_eq!(
                 sh34._check_value(transferred_value, mint_amount),
-                Err(Custom("BadMintValue".to_string()))
+                Err(Custom("BadMintValue".into()))
             );
         }
 

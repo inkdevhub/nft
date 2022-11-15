@@ -28,7 +28,7 @@ pub mod governance_token {
                 instance.metadata.symbol = Some(String::from("GOV"));
                 instance.metadata.decimals = 18;
                 instance
-                    ._mint(instance.env().caller(), total_supply)
+                    ._mint_to(instance.env().caller(), total_supply)
                     .expect("Should mint total_supply");
             })
         }
