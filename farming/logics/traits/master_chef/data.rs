@@ -58,4 +58,7 @@ pub struct Data {
 
     /// Total allocation points. Must be the sum of all allocation points in all pools.
     pub total_alloc_point: u32,
+
+    /// The block number when farming contract is deployed
+    pub farming_origin_block: u32,
 }

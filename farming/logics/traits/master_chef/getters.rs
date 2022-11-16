@@ -39,4 +39,9 @@ pub trait FarmingGetters: Storage<Data> {
     fn get_total_alloc_point(&self) -> u32 {
         self.data::<Data>().total_alloc_point
     }
+
+    #[ink(message)]
+    fn get_farming_origin_block(&self) -> u32 {
+        self.data::<Data>().farming_origin_block
+    }
 }

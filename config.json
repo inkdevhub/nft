@@ -1,5 +1,5 @@
 {
-  "projectFiles": ["uniswap-v2/contracts/**/*"],
+  "projectFiles": ["uniswap-v2/contracts/**/*", "farming/contracts/**/*"],
   "typechainGeneratedPath": "types",
   "isWorkspace": true,
   "workspacePath": "./"
