@@ -1,5 +1,5 @@
 [package]
-name = "shiden_graffiti"
+name = "psp34_helper"
 version = "0.2.0"
 authors = ["Stake Technologies <devops@stake.co.jp>"]
 edition = "2021"
@@ -16,27 +16,22 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 openbrush = { tag = "v2.3.0", git = "https://github.com/Supercolony-net/openbrush-contracts", default-features = false, features = ["ownable", "psp34", "reentrancy_guard"] }
-psp34_helper = { path = "../../logics", default-features = false }
-
 
 [lib]
-name = "shiden_graffiti"
 path = "lib.rs"
-crate-type = [
-	# Used for normal contract Wasm blobs.
-	"cdylib",
-]
+crate-type = ["rlib"]
 
 [features]
 default = ["std"]
 std = [
+    "ink_primitives/std",
+    "ink_metadata",
     "ink_metadata/std",
     "ink_env/std",
     "ink_storage/std",
-    "ink_primitives/std",
+    "ink_lang/std",
     "scale/std",
+    "scale-info",
     "scale-info/std",
     "openbrush/std",
-    "psp34_helper/std",
 ]
-ink-as-dependency = []
