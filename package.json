@@ -3,10 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@babel/core": "^7.7.4",
-    "@babel/plugin-transform-runtime": "^7.14.2",
-    "@babel/preset-env": "^7.7.4",
-    "@babel/register": "^7.7.4",
     "@types/chai": "^4.3.0",
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^8.0.3",
@@ -25,15 +21,10 @@
     "patch-package": "^6.4.7"
   },
   "scripts": {
-    "build:release": "npx redspot compile --release",
-    "build": "npx redspot compile",
     "compile": "typechain-compiler",
     "compile:release": "typechain-compiler --release",
     "test:typechain": "mocha --require ts-node/register --recursive ./tests --extension \".spec.ts\" --exit --timeout 20000",
-    "test:redspot": "npx redspot test",
-    "test:mocha": "mocha --require @babel/register --require ts-node/register --recursive ./tests --extension \".ts\" --exit --timeout 20000",
-    "test:mocha-single": "mocha --require @babel/register --require ts-node/register --extension \".ts\" --exit --timeout 20000",
-    "test": "yarn build:release && yarn test:mocha",
+    "test:single": "mocha --require ts-node/register --extension \".ts\" --exit --timeout 20000",
     "postinstall": "patch-package"
   },
   "resolutions": {
