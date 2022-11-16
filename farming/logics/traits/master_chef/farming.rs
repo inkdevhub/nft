@@ -35,7 +35,6 @@ use primitive_types::U256;
 
 // Cannot be 0 or it will panic!
 pub const ACC_ARSW_PRECISION: u128 = 1_000_000_000_000;
-pub const ARTHSWAP_ORIGIN_BLOCK: u32 = 1u32;
 pub const BLOCK_PER_PERIOD: u32 = 215000u32;
 pub const MAX_PERIOD: u32 = 23u32;
 pub const FIRST_PERIOD_REWERD_SUPPLY: Balance = 151629858171523000000u128;
@@ -537,20 +536,22 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
     }
 
     fn _get_period(&self, block_number: u32) -> Result<u32, FarmingError> {
+        let farming_origin_block = self.get_farming_origin_block();
         ensure!(
-            block_number >= ARTHSWAP_ORIGIN_BLOCK,
+            block_number >= farming_origin_block,
             FarmingError::BlockNumberLowerThanOriginBlock
         );
 
         // BLOCK_PER_PERIOD is never 0
         return Ok(block_number
-            .checked_sub(ARTHSWAP_ORIGIN_BLOCK)
+            .checked_sub(farming_origin_block)
             .ok_or(FarmingError::SubUnderflow1)?
             / BLOCK_PER_PERIOD)
     }
 
     fn _period_max(&self, period: u32) -> Result<u32, FarmingError> {
-        Ok(ARTHSWAP_ORIGIN_BLOCK
+        Ok(self
+            .get_farming_origin_block()
             .checked_add(
                 BLOCK_PER_PERIOD
                     .checked_mul(period.checked_add(1).ok_or(FarmingError::AddOverflow2)?)

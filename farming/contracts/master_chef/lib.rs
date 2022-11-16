@@ -39,6 +39,7 @@ pub mod master_chef_contract {
                 let caller = instance.env().caller();
                 instance._init_with_owner(caller);
                 instance.farming.arsw_token = arsw_token;
+                instance.farming.farming_origin_block = Self::env().block_number();
             })
         }
     }
