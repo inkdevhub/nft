@@ -8,15 +8,14 @@ mod ensubdomainfactory {
     pub struct EnsSubdomainFactory {
         owner: AccountId,
         locked: bool,
-        ethname_hash: 0x00,
     }
     #[ink(event)]
     pub struct SubdomainCreated {
         #[ink(topic)] //-> indexed
         creator: AccountId,
         owner: AccountId,
-        subdomain: vec[u8],
-        domain: vec[u8],
+        subdomain: Vec<u8>,
+        domain: Vec<u8>,
     }
     #[ink(event)]
     pub struct OwnershipTransferred {
@@ -103,8 +102,8 @@ mod ensubdomainfactory {
             assert_eq!(self.owner, caller, "Only owner can transfer ownership");
             self.owner = new_owner;
             self.env().emit_event(OwnershipTransferred {
-                previousOwner: caller,
-                newOwner: newOwner,
+                previous_owner: caller,
+                new_owner: new_owner,
             });
         }
         #[ink(message)]
