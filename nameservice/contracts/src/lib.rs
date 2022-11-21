@@ -8,14 +8,14 @@ mod ensubdomainfactory {
     pub struct EnsSubdomainFactory {
         owner: AccountId,
         locked: bool,
-        ethname_hash = 0x00,
+        ethname_hash: 0x00,
     }
     #[ink(event)]
     pub struct SubdomainCreated {
         #[ink(topic)] //-> indexed
-        creator: AccountId, 
-        owner: AccountId, 
-        subdomain: vec[u8], 
+        creator: AccountId,
+        owner: AccountId,
+        subdomain: vec[u8],
         domain: vec[u8],
     }
     #[ink(event)]
@@ -124,5 +124,5 @@ mod ensubdomainfactory {
             self.env().transfer(new_owner, self.env().balance());
         }
     }
-    
+
 }
