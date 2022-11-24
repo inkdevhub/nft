@@ -12,10 +12,11 @@ import Pair from '../types/contracts/pair_contract';
 import Token from '../types/contracts/psp22_token';
 import Wnative from '../types/contracts/wnative_contract';
 import Router from '../types/contracts/router_contract';
-import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
+import { ApiPromise } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { AccountId, Hash } from 'types-arguments/factory_contract';
 import { ReturnNumber } from '@supercolony/typechain-types';
+import { setupApi } from './setup';
 
 use(chaiAsPromised);
 
@@ -23,11 +24,6 @@ const zeroAddress = encodeAddress(
   '0x0000000000000000000000000000000000000000000000000000000000000000',
 );
 const MINIMUM_LIQUIDITY = 1000;
-
-// Create a new instance of contract
-const wsProvider = new WsProvider('ws://127.0.0.1:9944');
-// Create a keyring instance
-const keyring = new Keyring({ type: 'sr25519' });
 
 describe('Dex spec', () => {
   let pairFactory: Pair_factory;
@@ -50,9 +46,7 @@ describe('Dex spec', () => {
   let gasRequired: bigint;
 
   async function setup(): Promise<void> {
-    api = await ApiPromise.create({ provider: wsProvider });
-    deployer = keyring.addFromUri('//Alice');
-    wallet = keyring.addFromUri('//Bob');
+    ({ api: api, alice: deployer, bob: wallet } = await setupApi());
     pairFactory = new Pair_factory(api, deployer);
     const pair = new Pair((await pairFactory.new()).address, deployer, api);
     pairHash = pair.abi.info.source.wasmHash.toHex();

@@ -478,10 +478,10 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         lp_supply: Balance,
     ) -> Result<Balance, FarmingError> {
         ensure!(lp_supply > 0, FarmingError::LpSupplyIsZero);
-        let current_period = self._get_period(current_block)?;
+        let current_period = self.get_period(current_block)?;
         let mut arsw_reward: Balance = 0;
         let mut last_block = pool_info.last_reward_block;
-        let last_reward_block_period = self._get_period(last_block)?;
+        let last_reward_block_period = self.get_period(last_block)?;
         let mut period = last_reward_block_period;
         let total_alloc_point = self.get_total_alloc_point();
         while period <= current_period {
@@ -535,7 +535,8 @@ pub trait Farming: Storage<Data> + Storage<ownable::Data> + FarmingGetters + Far
         )
     }
 
-    fn _get_period(&self, block_number: u32) -> Result<u32, FarmingError> {
+    #[ink(message)]
+    fn get_period(&self, block_number: u32) -> Result<u32, FarmingError> {
         let farming_origin_block = self.get_farming_origin_block();
         ensure!(
             block_number >= farming_origin_block,
