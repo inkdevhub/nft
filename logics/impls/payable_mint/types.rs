@@ -15,20 +15,20 @@ pub struct Data {
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum ShidenGraffitiError {
+pub enum Shiden34Error {
     CannotMintZeroTokens,
     CollectionIsFull,
     BadMintValue,
     WithdrawalFailed,
 }
 
-impl ShidenGraffitiError {
+impl Shiden34Error {
     pub fn as_str(&self) -> String {
         match self {
-            ShidenGraffitiError::CannotMintZeroTokens => String::from("CannotMintZeroTokens"),
-            ShidenGraffitiError::CollectionIsFull => String::from("CollectionIsFull"),
-            ShidenGraffitiError::BadMintValue => String::from("BadMintValue"),
-            ShidenGraffitiError::WithdrawalFailed => String::from("WithdrawalFailed"),
+            Shiden34Error::CannotMintZeroTokens => String::from("CannotMintZeroTokens"),
+            Shiden34Error::CollectionIsFull => String::from("CollectionIsFull"),
+            Shiden34Error::BadMintValue => String::from("BadMintValue"),
+            Shiden34Error::WithdrawalFailed => String::from("WithdrawalFailed"),
         }
     }
 }

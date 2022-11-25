@@ -9,10 +9,10 @@ use openbrush::{
 };
 
 #[openbrush::wrapper]
-pub type Psp34CustomRef = dyn Psp34Custom;
+pub type PayableMintRef = dyn PayableMint;
 
 #[openbrush::trait_definition]
-pub trait Psp34Custom {
+pub trait PayableMint {
     #[ink(message, payable)]
     fn mint_next(&mut self) -> Result<(), PSP34Error>;
     #[ink(message, payable)]

@@ -24,11 +24,11 @@ use ink_prelude::string::{
     ToString,
 };
 
-use crate::impls::psp34_custom::psp34_custom_types::{
+use crate::impls::payable_mint::types::{
     Data,
-    ShidenGraffitiError,
+    Shiden34Error,
 };
-pub use crate::traits::psp34_custom::Psp34Custom;
+pub use crate::traits::payable_mint::PayableMint;
 use openbrush::{
     contracts::{
         ownable::*,
@@ -64,7 +64,7 @@ pub trait Internal {
     fn _emit_approval_event(&self, from: AccountId, to: AccountId, id: Option<Id>, approved: bool);
 }
 
-impl<T> Psp34Custom for T
+impl<T> PayableMint for T
 where
     T: Storage<Data>
         + Storage<psp34::Data<enumerable::Balances>>
@@ -82,7 +82,7 @@ where
                 .last_token_id
                 .checked_add(1)
                 .ok_or(PSP34Error::Custom(String::from(
-                    ShidenGraffitiError::CollectionIsFull.as_str(),
+                    Shiden34Error::CollectionIsFull.as_str(),
                 )))?;
         self.data::<psp34::Data<enumerable::Balances>>()
             ._mint_to(caller, Id::U64(token_id))?;
@@ -155,13 +155,13 @@ where
         Self::env()
             .transfer(self.data::<ownable::Data>().owner(), current_balance)
             .map_err(|_| {
-                PSP34Error::Custom(String::from(ShidenGraffitiError::WithdrawalFailed.as_str()))
+                PSP34Error::Custom(String::from(Shiden34Error::WithdrawalFailed.as_str()))
             })?;
         Ok(())
     }
 }
 
-/// Helper trait for Psp34Custom
+/// Helper trait for PayableMint
 impl<T> Internal for T
 where
     T: Storage<Data> + Storage<psp34::Data<enumerable::Balances>>,
@@ -178,7 +178,7 @@ where
             }
         }
         return Err(PSP34Error::Custom(String::from(
-            ShidenGraffitiError::BadMintValue.as_str(),
+            Shiden34Error::BadMintValue.as_str(),
         )))
     }
 
@@ -186,7 +186,7 @@ where
     default fn _check_amount(&self, mint_amount: u64) -> Result<(), PSP34Error> {
         if mint_amount == 0 {
             return Err(PSP34Error::Custom(String::from(
-                ShidenGraffitiError::CannotMintZeroTokens.as_str(),
+                Shiden34Error::CannotMintZeroTokens.as_str(),
             )))
         }
         if let Some(amount) = self.data::<Data>().last_token_id.checked_add(mint_amount) {
@@ -195,7 +195,7 @@ where
             }
         }
         return Err(PSP34Error::Custom(String::from(
-            ShidenGraffitiError::CollectionIsFull.as_str(),
+            Shiden34Error::CollectionIsFull.as_str(),
         )))
     }
 

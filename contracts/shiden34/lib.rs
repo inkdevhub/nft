@@ -96,7 +96,7 @@ pub mod shiden34 {
     }
 
     // Override event emission methods
-    impl payable_mint::Internal for Shiden34Contract {
+    impl psp34::Internal for Shiden34Contract {
         fn _emit_transfer_event(&self, from: Option<AccountId>, to: Option<AccountId>, id: Id) {
             self.env().emit_event(Transfer { from, to, id });
         }

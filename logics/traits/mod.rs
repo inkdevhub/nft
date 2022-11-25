@@ -1,1 +1,1 @@
-pub mod psp34_custom;
+pub mod payable_mint;

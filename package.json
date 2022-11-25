@@ -1,6 +1,6 @@
 {
-  "name": "astar-examples",
-  "version": "0.1.0",
+  "name": "shiden34",
+  "version": "0.2.0",
   "private": true,
   "dependencies": {
     "@types/chai": "^4.3.0",
