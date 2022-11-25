@@ -1,31 +1,50 @@
-# Deployed PSP34 example
-This example is intended to help usage of PSP34 for commercial NFT projects.
-This contract implements `openbrush`
-- PSP34
-- PSP34Enumerable
-- PSP34Metadata
-- Ownable
+# NFT project using PSP34
+This is an example nft project using ink! smart contract. The project is generated with Openbrush wizard for PSP34 with added PayableMinted trait.
 
-> Note! PSP34Mintable is overriden with empty implementation since it does not support payments
+### Purpose
+This is an unaudited nft project template.
+It can be used to speed up wasm nft project on Astar and other networks.
 
-#### Custom trait implements
-- fn mint_next(&mut self) -> Result<(), PSP34Error>;
-- fn mint_for(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error>;
-- fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error>;
-- fn token_uri(&self, token_id: u64) -> Result<String, PSP34Error>;
-- fn max_supply(&self) -> u64;
-- fn withdraw(&mut self) -> Result<(), PSP34Error>;
+### License
+Apache 2.0
 
-- [x] unit test is implemented
-- [x] deployed on Shibuya
-- [ ] deployed on Shiden
+### 🏗️ How to use - Contracts
+##### 💫 Build
+- Use this [instructions](https://use.ink/getting-started/setup) to setup your ink!/Rust environment
 
-## Deployment on Shibuya
-Contract address on Shibuya: 
-`YSXjTTTiqYuUQT51WgMCQspKsw7qiY4Ng2Crp3Mc2hNmATc`
+```sh
+cargo contract build
+```
 
-contract hash: 
-`0x797865cd08843df1cc7668f66a2064bcc359fa633ceadb0bd65213e4f612a888`
+##### 💫 Run unit test
 
-## Deployment on Shiden
-> soon
+```sh
+cargo test
+```
+##### 💫 Deploy
+First start your local node. Recommended [swanky-node](https://github.com/AstarNetwork/swanky-node) v0.13.0
+```sh
+cargo ??
+```
+- or deploy polkadot JS. Instructions on [Astar docs](https://docs.astar.network/docs/wasm/sc-dev/polkadotjs-ui)
+
+##### 💫 Run integration test
+First start your local node. Recommended [swanky-node](https://github.com/AstarNetwork/swanky-node) v0.13.0
+
+```sh
+yarn
+yarn compile
+yarn test:typechain
+```
+
+##### 💫 Deployed contracts
+TBA
+
+---
+## 🏗️ How to use - UI
+Image - GIF
+Link to UI - how to use
+##### Build local
+yarn ...
+##### links
+link to vercel deployed website
