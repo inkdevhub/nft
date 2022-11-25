@@ -1,37 +1,31 @@
-# Astar WASM showcase dApps
-This repository contains examples of ink! contracts and their respective UIs that can be deployed on Astar network.
-If you are looking for unaudited production ready dApps (ink! + UI) this repo is for you.
+# Deployed PSP34 example
+This example is intended to help usage of PSP34 for commercial NFT projects.
+This contract implements `openbrush`
+- PSP34
+- PSP34Enumerable
+- PSP34Metadata
+- Ownable
 
-#### Contribute to this repository
-contributions are welcome:
-- If you find an issue or a refactor idea please open an issue
-- If you want to add your own example open a Pull Request
+> Note! PSP34Mintable is overriden with empty implementation since it does not support payments
 
-## dApps
-#### Uniswap-V2 - DEX
-This folder contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) + [uniswap-v2 periphery](https://github.com/Uniswap/v2-periphery) & its tests. It uses latest [ink! 3.4.0](https://github.com/paritytech/ink/tree/v3.4.0) & [Openbrush 2.3.0](https://github.com/Supercolony-net/openbrush-contracts/tree/v2.3.0)
-The UI template is in active development and will be public in January 23
+#### Custom trait implements
+- fn mint_next(&mut self) -> Result<(), PSP34Error>;
+- fn mint_for(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error>;
+- fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error>;
+- fn token_uri(&self, token_id: u64) -> Result<String, PSP34Error>;
+- fn max_supply(&self) -> u64;
+- fn withdraw(&mut self) -> Result<(), PSP34Error>;
 
-### Farming
-A farming dApp line by line implementation of [ArthSwap master chef](https://github.com/ArthSwap/ArthSwap-MasterChef) adapted from 
-[sushiswap](https://github.com/sushiswap/sushiswap/blob/archieve/canary/contracts/MasterChefV2.sol) 
+- [x] unit test is implemented
+- [x] deployed on Shibuya
+- [ ] deployed on Shiden
 
-### Fliper + UI 
-This is an hello world! example with a basic flipper contract and an UI to interact with it.
-The UI is a react app and uses polkadotjs to interact with the node
+## Deployment on Shibuya
+Contract address on Shibuya: 
+`YSXjTTTiqYuUQT51WgMCQspKsw7qiY4Ng2Crp3Mc2hNmATc`
 
-#### DAO
-On Chain governance based on [Governor](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/governance) contracts of OpenZeppelin
+contract hash: 
+`0x797865cd08843df1cc7668f66a2064bcc359fa633ceadb0bd65213e4f612a888`
 
-#### Tests
-The test folder contains integration tests for the contracts. Tests are made with two different test frameworks, redspot and typechain.
-
-**Runs the tests**
-1. Run a local node \
-   Please use [swanky-node](https://github.com/AstarNetwork/swanky-node/releases) 
-2. The integration tests uses typechain. Node version should be >= 16
-     ```bash
-     yarn install
-     yarn compile
-     yarn test:typechain
-     ```
+## Deployment on Shiden
+> soon
