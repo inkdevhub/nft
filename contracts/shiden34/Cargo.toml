@@ -1,5 +1,5 @@
 [package]
-name = "shiden_graffiti"
+name = "shiden34"
 version = "0.2.0"
 authors = ["Stake Technologies <devops@stake.co.jp>"]
 edition = "2021"
@@ -16,11 +16,11 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 openbrush = { tag = "v2.3.0", git = "https://github.com/Supercolony-net/openbrush-contracts", default-features = false, features = ["ownable", "psp34", "reentrancy_guard"] }
-psp34_helper = { path = "../../logics", default-features = false }
+pallet_payable_mint = { path = "../../logics", default-features = false }
 
 
 [lib]
-name = "shiden_graffiti"
+name = "shiden34"
 path = "lib.rs"
 crate-type = [
 	# Used for normal contract Wasm blobs.
@@ -37,6 +37,6 @@ std = [
     "scale/std",
     "scale-info/std",
     "openbrush/std",
-    "psp34_helper/std",
+    "pallet_payable_mint/std",
 ]
 ink-as-dependency = []
