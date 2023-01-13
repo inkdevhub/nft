@@ -10,7 +10,6 @@ pub mod shiden34 {
 	use openbrush::traits::String;
 	use openbrush::traits::Storage;
 	use openbrush::contracts::ownable::*;
-	use openbrush::contracts::psp34::extensions::mintable::*;
 	use openbrush::contracts::psp34::extensions::enumerable::*;
 	use openbrush::contracts::psp34::extensions::metadata::*;
 
@@ -28,14 +27,15 @@ pub mod shiden34 {
     // Section contains default implementation without any modifications
 	impl PSP34 for Contract {}
 	impl Ownable for Contract {}
-	impl PSP34Mintable for Contract {
-		#[ink(message)]
-		#[openbrush::modifiers(only_owner)]
-		fn mint(
-            &mut self,
-            account: AccountId,
-			id: Id
-        ) -> Result<(), PSP34Error> {
+
+	#[openbrush::trait_definition]
+	pub trait PayableMint {
+		fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {}
+	}
+	
+	impl PayableMint for Contract {
+		#[ink(message, payable)]
+		default fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
 			self._mint_to(account, id)
 		}
 	}
