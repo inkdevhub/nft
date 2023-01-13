@@ -13,6 +13,10 @@ pub mod shiden34 {
 	use openbrush::contracts::psp34::extensions::enumerable::*;
 	use openbrush::contracts::psp34::extensions::metadata::*;
 
+	use pallet_payable_mint::{
+        traits::payable_mint::*,
+    };
+
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
     pub struct Contract {
@@ -30,7 +34,8 @@ pub mod shiden34 {
 
 	impl PSP34Enumerable for Contract {}
 	impl PSP34Metadata for Contract {}
-     
+    impl PayableMint for Contract {}
+
     impl Contract {
         #[ink(constructor)]
         pub fn new() -> Self {
@@ -41,13 +46,5 @@ pub mod shiden34 {
 				_instance._set_attribute(collection_id, String::from("symbol"), String::from("SH34"));
 			})
         }
-
-		#[ink(message, payable)]
-		pub fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
-			if Self::env().transferred_value() != 1_000_000_000_000_000_000 {
-				return Err(PSP34Error::Custom(String::from("BadMintValue")))
-			}
-			self._mint_to(account, id)
-		}
     }
 }

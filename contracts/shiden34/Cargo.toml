@@ -20,6 +20,8 @@ scale-info = { version = "2", default-features = false, features = ["derive"], o
 # Include brush as a dependency and enable default implementation for PSP34 via brush feature
 openbrush = { tag = "v2.3.0", git = "https://github.com/Supercolony-net/openbrush-contracts", default-features = false, features = ["psp34", "ownable"] }
 
+pallet_payable_mint = { path = "../../logics", default-features = false }
+
 [lib]
 name = "shiden34"
 path = "lib.rs"
