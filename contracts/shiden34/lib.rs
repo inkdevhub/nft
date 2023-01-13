@@ -28,17 +28,6 @@ pub mod shiden34 {
 	impl PSP34 for Contract {}
 	impl Ownable for Contract {}
 
-	#[openbrush::trait_definition]
-	pub trait PayableMint {
-		fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {}
-	}
-	
-	impl PayableMint for Contract {
-		#[ink(message, payable)]
-		default fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
-			self._mint_to(account, id)
-		}
-	}
 	impl PSP34Enumerable for Contract {}
 	impl PSP34Metadata for Contract {}
      
@@ -47,11 +36,18 @@ pub mod shiden34 {
         pub fn new() -> Self {
             ink_lang::codegen::initialize_contract(|_instance: &mut Contract|{
 				_instance._init_with_owner(_instance.env().caller());
-				_instance._mint_to(_instance.env().caller(), Id::U8(1)).expect("Can't mint");
 				let collection_id = _instance.collection_id();
 				_instance._set_attribute(collection_id.clone(), String::from("name"), String::from("Shiden34"));
 				_instance._set_attribute(collection_id, String::from("symbol"), String::from("SH34"));
 			})
         }
+
+		#[ink(message, payable)]
+		pub fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
+			if Self::env().transferred_value() != 1_000_000_000_000_000_000 {
+				return Err(PSP34Error::Custom(String::from("BadMintValue")))
+			}
+			self._mint_to(account, id)
+		}
     }
 }
