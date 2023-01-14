@@ -14,18 +14,21 @@ pub mod shiden34 {
 	use openbrush::contracts::psp34::extensions::metadata::*;
 
 	use pallet_payable_mint::{
-        traits::payable_mint::*,
+		traits::payable_mint::*,
+		impls::payable_mint::*,
     };
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
     pub struct Contract {
     	#[storage_field]
-		psp34: psp34::Data<Balances>,
+        psp34: psp34::Data<enumerable::Balances>,
 		#[storage_field]
 		ownable: ownable::Data,
 		#[storage_field]
 		metadata: metadata::Data,
+		#[storage_field]
+        payable_mint: types::Data,
     }
     
     // Section contains default implementation without any modifications
@@ -38,13 +41,75 @@ pub mod shiden34 {
 
     impl Contract {
         #[ink(constructor)]
-        pub fn new() -> Self {
-            ink_lang::codegen::initialize_contract(|_instance: &mut Contract|{
-				_instance._init_with_owner(_instance.env().caller());
-				let collection_id = _instance.collection_id();
-				_instance._set_attribute(collection_id.clone(), String::from("name"), String::from("Shiden34"));
-				_instance._set_attribute(collection_id, String::from("symbol"), String::from("SH34"));
+        pub fn new(
+			name: String,
+            symbol: String,
+            base_uri: String,
+            max_supply: u64,
+            price_per_mint: Balance,
+		) -> Self {
+            ink_lang::codegen::initialize_contract(|instance: &mut Contract|{
+				instance._init_with_owner(instance.env().caller());
+				let collection_id = instance.collection_id();
+                instance._set_attribute(collection_id.clone(), String::from("name"), name);
+                instance._set_attribute(collection_id.clone(), String::from("symbol"), symbol);
+                instance._set_attribute(collection_id, String::from("baseUri"), base_uri);
+				instance.payable_mint.max_supply = max_supply;
+                instance.payable_mint.price_per_mint = price_per_mint;
+                instance.payable_mint.last_token_id = 0;
 			})
         }
     }
+
+	#[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::shiden34::PSP34Error::*;
+        use ink_env::test;
+        use ink_lang as ink;
+
+        const PRICE: Balance = 100_000_000_000_000_000;
+		
+        fn init() -> Contract {
+			const BASE_URI: &str = "ipfs://myIpfsUri/";
+			const MAX_SUPPLY: u64 = 10;
+            Contract::new(
+                String::from("Shiden34"),
+                String::from("SH34"),
+                String::from(BASE_URI),
+                MAX_SUPPLY,
+                PRICE,
+            )
+        }
+
+        #[ink::test]
+        fn mint_multiple_works() {
+            let mut sh34 = init();
+            let accounts = test::default_accounts::<Environment>();
+            set_sender(accounts.bob);
+            let num_of_mints: u64 = 5;
+
+            assert_eq!(sh34.total_supply(), 0);
+            test::set_value_transferred::<ink_env::DefaultEnvironment>(
+                PRICE * num_of_mints as u128,
+            );
+            assert!(sh34.mint(accounts.bob, num_of_mints).is_ok());
+            assert_eq!(sh34.total_supply(), num_of_mints as u128);
+            assert_eq!(sh34.balance_of(accounts.bob), 5);
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 0), Ok(Id::U64(1)));
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 1), Ok(Id::U64(2)));
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 2), Ok(Id::U64(3)));
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 3), Ok(Id::U64(4)));
+            assert_eq!(sh34.owners_token_by_index(accounts.bob, 4), Ok(Id::U64(5)));
+            assert_eq!(
+                sh34.owners_token_by_index(accounts.bob, 5),
+                Err(TokenNotExists)
+            );
+        }
+
+
+        fn set_sender(sender: AccountId) {
+            ink_env::test::set_caller::<Environment>(sender);
+        }
+	}
 }

@@ -1,10 +1,12 @@
+use ink_prelude::string::String as PreludeString;
+
 use openbrush::{
     contracts::{
         psp34::PSP34Error,
-        psp34::extensions::enumerable::*
     },
     traits::{
         AccountId,
+        Balance,
     },
 };
 
@@ -14,5 +16,16 @@ pub type PayableMintRef = dyn PayableMint;
 #[openbrush::trait_definition]
 pub trait PayableMint {
     #[ink(message, payable)]
-    fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error>;
+    fn mint(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error>;
+    #[ink(message)]
+    fn set_base_uri(&mut self, uri: PreludeString) -> Result<(), PSP34Error>;
+    #[ink(message)]
+    fn withdraw(&mut self) -> Result<(), PSP34Error>;
+
+    #[ink(message)]
+    fn token_uri(&self, token_id: u64) -> Result<PreludeString, PSP34Error>;
+    #[ink(message)]
+    fn max_supply(&self) -> u64;
+    #[ink(message)]
+    fn price(&self) -> Balance;
 }
