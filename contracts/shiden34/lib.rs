@@ -5,7 +5,10 @@
 pub mod shiden34 {
     // imports from ink!
 	use ink_storage::traits::SpreadAllocate;
-
+    use ink_lang::codegen::{
+        EmitEvent,
+        Env,
+    };
     // imports from openbrush
 	use openbrush::traits::String;
 	use openbrush::traits::Storage;
@@ -31,6 +34,29 @@ pub mod shiden34 {
         payable_mint: types::Data,
     }
     
+    /// Event emitted when a token transfer occurs.
+    #[ink(event)]
+    pub struct Transfer {
+        #[ink(topic)]
+        from: Option<AccountId>,
+        #[ink(topic)]
+        to: Option<AccountId>,
+        #[ink(topic)]
+        id: Id,
+    }
+
+    /// Event emitted when a token approve occurs.
+    #[ink(event)]
+    pub struct Approval {
+        #[ink(topic)]
+        from: AccountId,
+        #[ink(topic)]
+        to: AccountId,
+        #[ink(topic)]
+        id: Option<Id>,
+        approved: bool,
+    }
+
     // Section contains default implementation without any modifications
 	impl PSP34 for Contract {}
 	impl Ownable for Contract {}
@@ -60,6 +86,28 @@ pub mod shiden34 {
 			})
         }
     }
+
+	// Override event emission methods
+	impl psp34::Internal for Contract {
+		fn _emit_transfer_event(&self, from: Option<AccountId>, to: Option<AccountId>, id: Id) {
+			self.env().emit_event(Transfer { from, to, id });
+		}
+
+		fn _emit_approval_event(
+			&self,
+			from: AccountId,
+			to: AccountId,
+			id: Option<Id>,
+			approved: bool,
+		) {
+			self.env().emit_event(Approval {
+				from,
+				to,
+				id,
+				approved,
+			});
+		}
+	}
 
 	#[cfg(test)]
     mod tests {
@@ -101,6 +149,7 @@ pub mod shiden34 {
             assert_eq!(sh34.owners_token_by_index(accounts.bob, 2), Ok(Id::U64(3)));
             assert_eq!(sh34.owners_token_by_index(accounts.bob, 3), Ok(Id::U64(4)));
             assert_eq!(sh34.owners_token_by_index(accounts.bob, 4), Ok(Id::U64(5)));
+			assert_eq!(5, ink_env::test::recorded_events().count());
             assert_eq!(
                 sh34.owners_token_by_index(accounts.bob, 5),
                 Err(TokenNotExists)

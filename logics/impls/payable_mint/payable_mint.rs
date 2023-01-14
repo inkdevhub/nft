@@ -55,6 +55,7 @@ where
             self.data::<psp34::Data<enumerable::Balances>>()
                 ._mint_to(to, Id::U64(mint_id))?;
             self.data::<Data>().last_token_id += 1;
+            self._emit_transfer_event(None, Some(to), Id::U64(mint_id));
         }
 
         Ok(())
