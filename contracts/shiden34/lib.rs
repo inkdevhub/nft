@@ -16,7 +16,7 @@ pub mod shiden34 {
 	use openbrush::contracts::psp34::extensions::enumerable::*;
 	use openbrush::contracts::psp34::extensions::metadata::*;
 
-	use pallet_payable_mint::{
+	use payable_mint_pkg::{
 		traits::payable_mint::*,
 		impls::payable_mint::*,
     };

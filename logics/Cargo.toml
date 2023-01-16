@@ -1,5 +1,5 @@
 [package]
-name = "pallet_payable_mint"
+name = "payable_mint_pkg"
 version = "0.2.0"
 authors = ["Stake Technologies <devops@stake.co.jp>"]
 edition = "2021"
