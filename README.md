@@ -24,27 +24,19 @@ cargo test
 ##### 💫 Deploy
 First start your local node. Recommended [swanky-node](https://github.com/AstarNetwork/swanky-node) v0.13.0
 ```sh
-cargo ??
+./target/release/swanky-node --dev --tmp -lruntime=trace -lruntime::contracts=debug -lerror
 ```
-- or deploy polkadot JS. Instructions on [Astar docs](https://docs.astar.network/docs/wasm/sc-dev/polkadotjs-ui)
+- or deploy with polkadot.JS. Instructions on [Astar docs](https://docs.astar.network/docs/wasm/sc-dev/polkadotjs-ui)
 
 ##### 💫 Run integration test
 First start your local node. Recommended [swanky-node](https://github.com/AstarNetwork/swanky-node) v0.13.0
-
+And then:
 ```sh
 yarn
 yarn compile
-yarn test:typechain
+yarn test
 ```
 
 ##### 💫 Deployed contracts
 TBA
 
----
-## 🏗️ How to use - UI
-Image - GIF
-Link to UI - how to use
-##### Build local
-yarn ...
-##### links
-link to vercel deployed website
