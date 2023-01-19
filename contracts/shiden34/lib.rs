@@ -23,7 +23,7 @@ pub mod shiden34 {
         },
     };
 
-    use pallet_payable_mint::{
+    use payable_mint_pkg::{
         impls::payable_mint::*,
         traits::payable_mint::*,
     };
@@ -82,6 +82,7 @@ pub mod shiden34 {
             price_per_mint: Balance,
         ) -> Self {
             ink_lang::codegen::initialize_contract(|instance: &mut Shiden34Contract| {
+                instance._init_with_owner(instance.env().caller());
                 let collection_id = instance.collection_id();
                 instance._set_attribute(collection_id.clone(), String::from("name"), name);
                 instance._set_attribute(collection_id.clone(), String::from("symbol"), symbol);
@@ -89,8 +90,6 @@ pub mod shiden34 {
                 instance.payable_mint.max_supply = max_supply;
                 instance.payable_mint.price_per_mint = price_per_mint;
                 instance.payable_mint.last_token_id = 0;
-                let caller = instance.env().caller();
-                instance._init_with_owner(caller);
             })
         }
     }
@@ -130,7 +129,7 @@ pub mod shiden34 {
         };
         use ink_lang as ink;
         use ink_prelude::string::String as PreludeString;
-        use pallet_payable_mint::impls::payable_mint::{
+        use payable_mint_pkg::impls::payable_mint::{
             payable_mint::Internal,
             types::Shiden34Error,
         };
@@ -198,7 +197,7 @@ pub mod shiden34 {
             test::set_value_transferred::<ink_env::DefaultEnvironment>(
                 PRICE * num_of_mints as u128,
             );
-            assert!(sh34.mint_for(accounts.bob, num_of_mints).is_ok());
+            assert!(sh34.mint(accounts.bob, num_of_mints).is_ok());
             assert_eq!(sh34.total_supply(), num_of_mints as u128);
             assert_eq!(sh34.balance_of(accounts.bob), 5);
             assert_eq!(sh34.owners_token_by_index(accounts.bob, 0), Ok(Id::U64(1)));
@@ -225,7 +224,7 @@ pub mod shiden34 {
                 PRICE * num_of_mints as u128,
             );
             assert_eq!(
-                sh34.mint_for(accounts.bob, num_of_mints),
+                sh34.mint(accounts.bob, num_of_mints),
                 Err(PSP34Error::Custom(Shiden34Error::CollectionIsFull.as_str()))
             );
         }
@@ -242,7 +241,7 @@ pub mod shiden34 {
                 PRICE * num_of_mints as u128 - 1,
             );
             assert_eq!(
-                sh34.mint_for(accounts.bob, num_of_mints),
+                sh34.mint(accounts.bob, num_of_mints),
                 Err(PSP34Error::Custom(Shiden34Error::BadMintValue.as_str()))
             );
             test::set_value_transferred::<ink_env::DefaultEnvironment>(
@@ -345,13 +344,13 @@ pub mod shiden34 {
 
             // check case when last_token_id.add(mint_amount) if more than u64::MAX
             assert_eq!(
-                sh34._check_amount(3),
+                sh34.check_amount(3),
                 Err(PSP34Error::Custom(Shiden34Error::CollectionIsFull.as_str()))
             );
 
             // check case when mint_amount is 0
             assert_eq!(
-                sh34._check_amount(0),
+                sh34.check_amount(0),
                 Err(PSP34Error::Custom(
                     Shiden34Error::CannotMintZeroTokens.as_str()
                 ))
@@ -372,7 +371,7 @@ pub mod shiden34 {
             let transferred_value = u128::MAX;
             let mint_amount = u64::MAX;
             assert_eq!(
-                sh34._check_value(transferred_value, mint_amount),
+                sh34.check_value(transferred_value, mint_amount),
                 Err(PSP34Error::Custom(Shiden34Error::BadMintValue.as_str()))
             );
         }

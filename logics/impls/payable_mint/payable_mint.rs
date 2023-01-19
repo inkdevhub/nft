@@ -49,13 +49,13 @@ use openbrush::{
 
 pub trait Internal {
     /// Check if the transferred mint values is as expected
-    fn _check_value(&self, transfered_value: u128, mint_amount: u64) -> Result<(), PSP34Error>;
+    fn check_value(&self, transferred_value: u128, mint_amount: u64) -> Result<(), PSP34Error>;
 
     /// Check amount of tokens to be minted
-    fn _check_amount(&self, mint_amount: u64) -> Result<(), PSP34Error>;
+    fn check_amount(&self, mint_amount: u64) -> Result<(), PSP34Error>;
 
     /// Check if token is minted
-    fn _token_exists(&self, id: Id) -> Result<(), PSP34Error>;
+    fn token_exists(&self, id: Id) -> Result<(), PSP34Error>;
 }
 
 impl<T> PayableMint for T
@@ -68,9 +68,28 @@ where
         + psp34::extensions::metadata::PSP34Metadata
         + psp34::Internal,
 {
+    /// Mint one or more tokens
+    #[modifiers(non_reentrant)]
+    default fn mint(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error> {
+        self.check_value(Self::env().transferred_value(), mint_amount)?;
+        self.check_amount(mint_amount)?;
+
+        let next_to_mint = self.data::<Data>().last_token_id + 1; // first mint id is 1
+        let mint_offset = next_to_mint + mint_amount;
+
+        for mint_id in next_to_mint..mint_offset {
+            self.data::<psp34::Data<enumerable::Balances>>()
+                ._mint_to(to, Id::U64(mint_id))?;
+            self.data::<Data>().last_token_id += 1;
+            self._emit_transfer_event(None, Some(to), Id::U64(mint_id));
+        }
+
+        Ok(())
+    }
+
     /// Mint next available token for the caller
     default fn mint_next(&mut self) -> Result<(), PSP34Error> {
-        self._check_value(Self::env().transferred_value(), 1)?;
+        self.check_value(Self::env().transferred_value(), 1)?;
         let caller = Self::env().caller();
         let token_id =
             self.data::<Data>()
@@ -87,25 +106,6 @@ where
         return Ok(())
     }
 
-    /// Mint one or more tokens
-    #[modifiers(non_reentrant)]
-    default fn mint_for(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error> {
-        self._check_value(Self::env().transferred_value(), mint_amount)?;
-        self._check_amount(mint_amount)?;
-
-        let next_to_mint = self.data::<Data>().last_token_id + 1; // first mint id is 1
-        let mint_offset = next_to_mint + mint_amount;
-
-        for mint_id in next_to_mint..mint_offset {
-            self.data::<psp34::Data<enumerable::Balances>>()
-                ._mint_to(to, Id::U64(mint_id))?;
-            self.data::<Data>().last_token_id += 1;
-            self._emit_transfer_event(None, Some(to), Id::U64(mint_id));
-        }
-
-        Ok(())
-    }
-
     /// Set new value for the baseUri
     #[modifiers(only_owner)]
     default fn set_base_uri(&mut self, uri: PreludeString) -> Result<(), PSP34Error> {
@@ -117,9 +117,24 @@ where
         Ok(())
     }
 
+    /// Withdraws funds to contract owner
+    #[modifiers(only_owner)]
+    default fn withdraw(&mut self) -> Result<(), PSP34Error> {
+        let balance = Self::env().balance();
+        let current_balance = balance
+            .checked_sub(Self::env().minimum_balance())
+            .unwrap_or_default();
+        Self::env()
+            .transfer(self.data::<ownable::Data>().owner(), current_balance)
+            .map_err(|_| {
+                PSP34Error::Custom(String::from(Shiden34Error::WithdrawalFailed.as_str()))
+            })?;
+        Ok(())
+    }
+
     /// Get URI from token ID
     default fn token_uri(&self, token_id: u64) -> Result<PreludeString, PSP34Error> {
-        self._token_exists(Id::U64(token_id))?;
+        self.token_exists(Id::U64(token_id))?;
         let value = self.get_attribute(
             self.data::<psp34::Data<enumerable::Balances>>()
                 .collection_id(),
@@ -139,21 +154,6 @@ where
     default fn price(&self) -> Balance {
         self.data::<Data>().price_per_mint
     }
-
-    /// Get max supply of tokens
-    #[modifiers(only_owner)]
-    default fn withdraw(&mut self) -> Result<(), PSP34Error> {
-        let balance = Self::env().balance();
-        let current_balance = balance
-            .checked_sub(Self::env().minimum_balance())
-            .unwrap_or_default();
-        Self::env()
-            .transfer(self.data::<ownable::Data>().owner(), current_balance)
-            .map_err(|_| {
-                PSP34Error::Custom(String::from(Shiden34Error::WithdrawalFailed.as_str()))
-            })?;
-        Ok(())
-    }
 }
 
 /// Helper trait for PayableMint
@@ -162,13 +162,13 @@ where
     T: Storage<Data> + Storage<psp34::Data<enumerable::Balances>>,
 {
     /// Check if the transferred mint values is as expected
-    default fn _check_value(
+    default fn check_value(
         &self,
-        transfered_value: u128,
+        transferred_value: u128,
         mint_amount: u64,
     ) -> Result<(), PSP34Error> {
         if let Some(value) = (mint_amount as u128).checked_mul(self.data::<Data>().price_per_mint) {
-            if transfered_value == value {
+            if transferred_value == value {
                 return Ok(())
             }
         }
@@ -178,7 +178,7 @@ where
     }
 
     /// Check amount of tokens to be minted
-    default fn _check_amount(&self, mint_amount: u64) -> Result<(), PSP34Error> {
+    default fn check_amount(&self, mint_amount: u64) -> Result<(), PSP34Error> {
         if mint_amount == 0 {
             return Err(PSP34Error::Custom(String::from(
                 Shiden34Error::CannotMintZeroTokens.as_str(),
@@ -195,7 +195,7 @@ where
     }
 
     /// Check if token is minted
-    default fn _token_exists(&self, id: Id) -> Result<(), PSP34Error> {
+    default fn token_exists(&self, id: Id) -> Result<(), PSP34Error> {
         self.data::<psp34::Data<enumerable::Balances>>()
             .owner_of(id)
             .ok_or(PSP34Error::TokenNotExists)?;
