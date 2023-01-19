@@ -7,7 +7,6 @@ import Rmrk from '../types/contracts/shiden34';
 
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
-// import { AccountId } from '../types/types-arguments/rmrk_contract';
 import { ReturnNumber } from '@supercolony/typechain-types';
 
 use(chaiAsPromised);
@@ -52,7 +51,7 @@ describe('Minting psp34 tokens', () => {
     )).address, deployer, api);
   }
 
-  it('create collection works', async () => {
+  it('Create collection works', async () => {
     await setup();
     const queryList = await contract.query;
     expect((await contract.query.totalSupply()).value.rawNumber.toNumber()).to.equal(0);
@@ -65,7 +64,7 @@ describe('Minting psp34 tokens', () => {
     // expect((await contract.query.getAttribute(collectionId, ["baseUri"])).value).to.equal(BASE_URI);
   })
 
-  it('mintNext works', async () => {
+  it('Use mintNext works', async () => {
     await setup();
     const tokenId = 1;
 
@@ -86,19 +85,22 @@ describe('Minting psp34 tokens', () => {
     // expect((await contract.query.tokenUri(1))).to.equal(TOKEN_URI_1);
   })
 
-  it('mint 5 tokens works', async () => {
+  it('Mint 5 tokens works', async () => {
     await setup();
 
     expect((await contract.query.totalSupply()).value.rawNumber.toNumber()).to.equal(0);
 
-    const { gasRequired } = await contract.withSigner(bob).query.mintNext();
+    const gasRequiredMaxAmount = (await contract.withSigner(bob).query.setMaxMintAmount(5)).gasRequired;
+    await contract.withSigner(deployer).tx.setMaxMintAmount(5, { gasLimit: gasRequiredMaxAmount });
+
+    const { gasRequired } = await contract.withSigner(bob).query.mint(bob.address, 5);
     await contract.withSigner(bob).tx.mint(bob.address, 5, { value: PRICE_PER_MINT.muln(5), gasLimit: gasRequired * 2n });
 
     expect((await contract.query.totalSupply()).value.rawNumber.toNumber()).to.equal(5);
     expect((await contract.query.ownerOf({ u64: 5 })).value).to.equal(bob.address);
   })
 
-  it('token transfer works', async () => {
+  it('Token transfer works', async () => {
     await setup();
 
     // Bob mints
@@ -116,7 +118,7 @@ describe('Minting psp34 tokens', () => {
     emit(transferResult, 'Transfer', { from: bob.address, to: deployer.address, id: { u64: 1 }, });
   })
 
-  it('token aproval works', async () => {
+  it('Token approval works', async () => {
     await setup();
 
     // Bob mints
@@ -126,7 +128,7 @@ describe('Minting psp34 tokens', () => {
     // Bob approves deployer to be operator of the token
     const approveGas = (await contract.withSigner(bob).query.approve(deployer.address, { u64: 1 }, true)).gasRequired;
     let approveResult = await contract.withSigner(bob).tx.approve(deployer.address, { u64: 1 }, true, { gasLimit: approveGas });
-    
+
     // Verify that Bob is still the owner and allowance is set
     expect((await contract.query.ownerOf({ u64: 1 })).value).to.equal(bob.address);
     expect((await contract.query.allowance(bob.address, deployer.address, { u64: 1 })).value).to.equal(true);
@@ -136,7 +138,7 @@ describe('Minting psp34 tokens', () => {
   it('Minting token without funds should fail', async () => {
     await setup();
 
-    // Bob trys to mint without funding
+    // Bob tries to mint without funding
     let mintResult = await contract.withSigner(bob).query.mintNext();
     expect(hex2a(mintResult.value.err.custom)).to.be.equal('BadMintValue');
   })
@@ -161,6 +163,6 @@ function hex2a(psp34CustomError: any): string {
   var hex = psp34CustomError.toString(); //force conversion
   var str = '';
   for (var i = 0; i < hex.length; i += 2)
-      str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
   return str.substring(1);
 }

@@ -29,6 +29,10 @@ pub trait PayableMint {
     #[ink(message)]
     fn withdraw(&mut self) -> Result<(), PSP34Error>;
 
+    /// Set max number of tokens which could be minted per call
+    #[ink(message)]
+    fn set_max_mint_amount(&mut self, max_amount: u64) -> Result<(), PSP34Error>;
+
     /// Get URI from token ID
     #[ink(message)]
     fn token_uri(&self, token_id: u64) -> Result<PreludeString, PSP34Error>;
@@ -40,4 +44,8 @@ pub trait PayableMint {
     /// Get token price
     #[ink(message)]
     fn price(&self) -> Balance;
+
+    /// Get max number of tokens which could be minted per call
+    #[ink(message)]
+    fn get_max_mint_amount(&mut self) -> u64;
 }
