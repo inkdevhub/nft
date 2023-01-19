@@ -4,9 +4,6 @@ on:
   pull_request:
     branches:
     - main
-  push:
-    branches:
-    - main
 
 jobs:
   build:
@@ -35,4 +32,4 @@ jobs:
 
     - name: Test
       run: cargo test
-      
+
