@@ -90,6 +90,7 @@ pub mod shiden34 {
                 instance.payable_mint.max_supply = max_supply;
                 instance.payable_mint.price_per_mint = price_per_mint;
                 instance.payable_mint.last_token_id = 0;
+                instance.payable_mint.max_amount = 1;
             })
         }
     }
@@ -192,6 +193,14 @@ pub mod shiden34 {
             let accounts = default_accounts();
             set_sender(accounts.alice);
             let num_of_mints: u64 = 5;
+            // Set max limit to 'num_of_mints', fails to mint 'num_of_mints + 1'. Caller is contract owner
+            assert!(sh34.set_max_mint_amount(num_of_mints).is_ok());
+            assert_eq!(
+                sh34.mint(accounts.bob, num_of_mints + 1),
+                Err(PSP34Error::Custom(
+                    Shiden34Error::TooManyTokensToMint.as_str()
+                ))
+            );
 
             assert_eq!(sh34.total_supply(), 0);
             test::set_value_transferred::<ink_env::DefaultEnvironment>(
@@ -223,6 +232,7 @@ pub mod shiden34 {
             test::set_value_transferred::<ink_env::DefaultEnvironment>(
                 PRICE * num_of_mints as u128,
             );
+            assert!(sh34.set_max_mint_amount(num_of_mints).is_ok());
             assert_eq!(
                 sh34.mint(accounts.bob, num_of_mints),
                 Err(PSP34Error::Custom(Shiden34Error::CollectionIsFull.as_str()))
@@ -343,6 +353,7 @@ pub mod shiden34 {
             sh34.payable_mint.last_token_id = max_supply - 1;
 
             // check case when last_token_id.add(mint_amount) if more than u64::MAX
+            assert!(sh34.set_max_mint_amount(u64::MAX).is_ok());
             assert_eq!(
                 sh34.check_amount(3),
                 Err(PSP34Error::Custom(Shiden34Error::CollectionIsFull.as_str()))
