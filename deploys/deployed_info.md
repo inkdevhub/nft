@@ -9,10 +9,13 @@
 * Test34
 
 ### baseUri
-* ipfs://bafybeifpboqpyqyxnz7vu2twnwbp3nkj44icaabnmlhrngzjsptybjzu2y/
+* ipfs://bafybeicfssxspb7dqomv745prumj35ntee3pafx7ybe4uqmos3htnxf7km/
 
 ### tokenUri(1)
-* ipfs://bafybeifpboqpyqyxnz7vu2twnwbp3nkj44icaabnmlhrngzjsptybjzu2y/1.json
+* ipfs://bafybeicfssxspb7dqomv745prumj35ntee3pafx7ybe4uqmos3htnxf7km/1.json
+
+### images
+* ipfs://bafybeifpboqpyqyxnz7vu2twnwbp3nkj44icaabnmlhrngzjsptybjzu2y/1.png
 
 ### Images Gateway url
 * [nftstorage pin ](https://nftstorage.link/ipfs/bafybeifpboqpyqyxnz7vu2twnwbp3nkj44icaabnmlhrngzjsptybjzu2y)
