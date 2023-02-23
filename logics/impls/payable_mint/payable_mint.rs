@@ -1,27 +1,14 @@
-use ink_prelude::string::{
-    String as PreludeString,
-    ToString,
-};
+use ink::prelude::string::{String as PreludeString, ToString};
 
-use crate::impls::payable_mint::types::{
-    Data,
-};
+use crate::impls::payable_mint::types::Data;
 pub use crate::traits::payable_mint::PayableMint;
 use openbrush::{
     contracts::{
         ownable::*,
-        psp34::extensions::{
-            enumerable::*,
-            metadata::*,
-        },
+        psp34::extensions::{enumerable::*, metadata::*},
     },
     modifiers,
-    traits::{
-        AccountId,
-        Balance,
-        Storage,
-        String,
-    },
+    traits::{AccountId, Balance, Storage, String},
 };
 
 pub trait Internal {
@@ -41,7 +28,6 @@ where
         + Storage<psp34::Data<enumerable::Balances>>
         + Storage<ownable::Data>
         + Storage<metadata::Data>
-        + psp34::extensions::metadata::PSP34Metadata
         + psp34::Internal,
 {
     default fn mint(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error> {
@@ -94,9 +80,7 @@ where
             .unwrap_or_default();
         Self::env()
             .transfer(self.data::<ownable::Data>().owner(), current_balance)
-            .map_err(|_| {
-                PSP34Error::Custom(String::from("WithdrawalFailed"))
-            })?;
+            .map_err(|_| PSP34Error::Custom(String::from("WithdrawalFailed")))?;
         Ok(())
     }
 
@@ -111,7 +95,6 @@ where
     }
 }
 
-
 /// Helper trait for PayableMint
 impl<T> Internal for T
 where
@@ -125,23 +108,23 @@ where
     ) -> Result<(), PSP34Error> {
         if let Some(value) = (mint_amount as u128).checked_mul(self.data::<Data>().price_per_mint) {
             if transferred_value == value {
-                return Ok(())
+                return Ok(());
             }
         }
-        return Err(PSP34Error::Custom(String::from("BadMintValue")))
+        return Err(PSP34Error::Custom(String::from("BadMintValue")));
     }
 
     /// Check amount of tokens to be minted
     default fn check_amount(&self, mint_amount: u64) -> Result<(), PSP34Error> {
         if mint_amount == 0 {
-            return Err(PSP34Error::Custom(String::from("CannotMintZeroTokens")))
+            return Err(PSP34Error::Custom(String::from("CannotMintZeroTokens")));
         }
         if let Some(amount) = self.data::<Data>().last_token_id.checked_add(mint_amount) {
             if amount <= self.data::<Data>().max_supply {
-                return Ok(())
+                return Ok(());
             }
         }
-        return Err(PSP34Error::Custom(String::from("CollectionIsFull")))
+        return Err(PSP34Error::Custom(String::from("CollectionIsFull")));
     }
 
     /// Check if token is minted
