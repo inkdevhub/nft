@@ -13,13 +13,13 @@ Apache 2.0
 - Use this [instructions](https://use.ink/getting-started/setup) to setup your ink!/Rust environment
 
 ```sh
-cargo contract build
+cargo +nightly contract build
 ```
 
 ##### 💫 Run unit test
 
 ```sh
-cargo test
+cargo +nightly test
 ```
 ##### 💫 Deploy
 First start your local node. Recommended [swanky-node](https://github.com/AstarNetwork/swanky-node) v0.13.0
@@ -38,5 +38,5 @@ yarn test
 ```
 
 ##### 💫 Deployed contracts
-TBA
+[Shiden Graffiti](https://github.com/Maar-io/ink-mint-dapp/tree/graffiti) - using ink! v3.4
 
