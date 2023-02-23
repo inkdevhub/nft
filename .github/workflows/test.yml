@@ -28,8 +28,8 @@ jobs:
       run: |
         rustup show
     - name: Check
-      run: cargo check
+      run: cargo +nightly check
 
     - name: Test
-      run: cargo test
+      run: cargo +nightly test
 
