@@ -36,16 +36,11 @@ jobs:
         sudo apt-get install binaryen
         cargo install cargo-dylint dylint-link
         # Until 2.0.0 official release, we need to specify --version expressly
-        cargo install --force --locked cargo-contract --version 2.0.0
+        cargo install --force --locked cargo-contract --version 2.0.1
+        rustup toolchain install nightly
 
     - name: Compile checks
-      run: |
-        manifest_paths=`find uniswap-v2/contracts -type f -name Cargo.toml`
-        echo $manifest_paths
-        for manifest_path in $manifest_paths; do
-          echo $manifest_path
-          cargo contract check --manifest-path $manifest_path
-        done
+      run: cargo +nightly contract check
 
     - name: test
       run: cargo test
