@@ -1,46 +1,35 @@
-name: PR checks
+name: Test
+
 on:
-  push:
-  workflow_dispatch:
+  pull_request:
+    branches:
+    - main
+
 jobs:
-  checks-and-tests:
+  build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v3
-
-    - name: Install & display rust toolchain
-      run: |
-        rustup show
-        rustup component add rust-src
-
-    - name: Check targets are installed correctly
-      run: rustup target list --installed
-
-    - name: Cache Crates
-      uses: actions/cache@v3
+    - uses: actions/checkout@v2
+    - name: Cache cargo
+      uses: actions/cache@v2
       with:
-        path: ~/.cargo 
-        key: ${{ runner.os }}-rust-${{ hashFiles('rust-toolchain.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-rust
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo
 
-    - name: Check if cargo-contract exists
-      id: check-cargo-contract
-      continue-on-error: true
-      run: cargo contract --version
+    - name: Set-Up
+      run: sudo apt install -y git clang curl libssl-dev llvm libudev-dev protobuf-compiler
 
-    - name: Install cargo contract
-      if: ${{ steps.check-cargo-contract.outcome == 'failure' }}
+    - name: Install toolchain
+      # hacky way to install rust. Rustup is pre-installed on runners. Calling rustup show will detect the rust-toolchain.toml, and subsequently
+      # download the needed toolchain and components.
       run: |
-        sudo apt-get install binaryen
-        cargo install cargo-dylint dylint-link
-        # Until 2.0.0 official release, we need to specify --version expressly
-        cargo install --force --locked cargo-contract --version 2.0.1
         rustup toolchain install nightly
+        rustup show
+    - name: Check
+      run: cargo +nightly check
 
-    - name: Compile checks
-      run: cargo +nightly contract check
-
-    - name: test
-      run: cargo test
+    - name: Test
+      run: cargo +nightly test
