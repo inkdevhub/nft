@@ -1,4 +1,4 @@
-use ink_prelude::string::String as PreludeString;
+use ink::prelude::string::String as PreludeString;
 
 use openbrush::{
     contracts::psp34::PSP34Error,
