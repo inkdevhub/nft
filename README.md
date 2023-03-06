@@ -1,3 +1,8 @@
+[![stack-exchange][s1]][s2] 
+
+[s1]: https://img.shields.io/badge/click-white.svg?logo=StackExchange&label=ink!%20Support%20on%20StackExchange&labelColor=white&color=blue
+[s2]: https://substrate.stackexchange.com/questions/tagged/ink?tab=Votes
+
 # NFT project using PSP34
 This is an example nft project using ink! smart contract. The project is generated with Openbrush wizard for PSP34 with added PayableMinted trait.
 
