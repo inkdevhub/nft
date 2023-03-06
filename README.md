@@ -6,7 +6,7 @@
 [a2]: https://github.com/swanky-dapps/nft/actions/workflows/test.yml
 [l1]: https://img.shields.io/discord/722223075629727774?style=flat-square&label=discord
 [l2]: https://discord.gg/Z3nC9U4
-[i1]: /.images/badge.svg
+[i1]: /.images/ink.svg
 [i2]: https://github.com/paritytech/ink
 
 # NFT project using PSP34
