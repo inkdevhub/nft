@@ -1,6 +1,6 @@
 [package]
 name = "payable_mint_pkg"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Astar builder"]
 edition = "2021"
 
