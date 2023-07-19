@@ -1,6 +1,6 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-#![feature(min_specialization)]
+#![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+#[openbrush::implementation(PSP34, PSP34Metadata)]
 #[openbrush::contract]
 pub mod shiden34 {
     use ink::codegen::{
@@ -22,17 +22,15 @@ pub mod shiden34 {
         },
     };
 
-    use payable_mint_pkg::{
-        impls::payable_mint::*,
-        traits::payable_mint::*,
-    };
+    use payable_mint_pkg::impls::payable_mint::*;
+    use payable_mint_pkg::impls::payable_mint::payable_mint::PayableMintImpl;
 
     // Shiden34Contract contract storage
     #[ink(storage)]
     #[derive(Default, Storage)]
     pub struct Shiden34Contract {
         #[storage_field]
-        psp34: psp34::Data<enumerable::Balances>,
+        psp34: psp34::Data,
         #[storage_field]
         guard: reentrancy_guard::Data,
         #[storage_field]
@@ -42,11 +40,6 @@ pub mod shiden34 {
         #[storage_field]
         payable_mint: types::Data,
     }
-
-    impl PSP34 for Shiden34Contract {}
-    impl PSP34Enumerable for Shiden34Contract {}
-    impl PSP34Metadata for Shiden34Contract {}
-    impl Ownable for Shiden34Contract {}
 
     /// Event emitted when a token transfer occurs.
     #[ink(event)]
@@ -70,6 +63,8 @@ pub mod shiden34 {
         id: Option<Id>,
         approved: bool,
     }
+
+    impl PayableMintImpl for Shiden34Contract {}
 
     impl Shiden34Contract {
         #[ink(constructor)]
@@ -115,8 +110,6 @@ pub mod shiden34 {
             });
         }
     }
-
-    impl PayableMint for Shiden34Contract {}
 
     // ------------------- T E S T -----------------------------------------------------
     #[cfg(test)]

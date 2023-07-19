@@ -2,10 +2,9 @@ use openbrush::traits::{
     Balance,
     String,
 };
-pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
 
 #[derive(Default, Debug)]
-#[openbrush::upgradeable_storage(STORAGE_KEY)]
+#[openbrush::storage_item]
 pub struct Data {
     pub last_token_id: u64,
     pub collection_id: u32,
