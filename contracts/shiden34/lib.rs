@@ -22,8 +22,10 @@ pub mod shiden34 {
         },
     };
 
-    use payable_mint_pkg::impls::payable_mint::*;
-    use payable_mint_pkg::impls::payable_mint::payable_mint::PayableMintImpl;
+    use payable_mint_pkg::impls::payable_mint::{
+        payable_mint::PayableMintImpl,
+        *,
+    };
 
     // Shiden34Contract contract storage
     #[ink(storage)]

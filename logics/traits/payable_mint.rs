@@ -26,7 +26,7 @@ pub trait PayableMint {
     fn set_base_uri(&mut self, uri: PreludeString) -> Result<(), PSP34Error>;
 
     /// Withdraws funds to contract owner
-        
+
     fn withdraw(&mut self) -> Result<(), PSP34Error>;
 
     /// Set max number of tokens which could be minted per call
