@@ -29,14 +29,14 @@ use crate::impls::payable_mint::types::{
     Shiden34Error,
 };
 use openbrush::{
-    contracts::{
-        ownable::*,
-        psp34::extensions::{
-            enumerable::*,
-            metadata::*,
-        },
-        reentrancy_guard::*,
-    },
+    // contracts::{
+    //     ownable::*,
+    //     psp34::extensions::{
+    //         enumerable::*,
+    //         metadata::*,
+    //     },
+    //     reentrancy_guard::*,
+    // },
     modifiers,
     traits::{
         AccountId,
@@ -46,6 +46,25 @@ use openbrush::{
     },
 };
 
+use openbrush::contracts::{
+    ownable,
+    ownable::only_owner,
+    psp34,
+    psp34::{
+        extensions::{
+            metadata,
+            metadata::{
+                Id,
+                PSP34MetadataImpl,
+            },
+        },
+        PSP34Error,
+        PSP34Impl,
+    },
+    reentrancy_guard,
+    reentrancy_guard::non_reentrant,
+};
+
 #[openbrush::trait_definition]
 pub trait PayableMintImpl:
     Storage<Data>
@@ -53,7 +72,7 @@ pub trait PayableMintImpl:
     + Storage<reentrancy_guard::Data>
     + Storage<ownable::Data>
     + Storage<metadata::Data>
-    + psp34::PSP34Impl
+    + PSP34Impl
     + PSP34MetadataImpl
     + psp34::extensions::metadata::Internal
     + Internal
@@ -133,7 +152,7 @@ pub trait PayableMintImpl:
     #[ink(message)]
     fn token_uri(&self, token_id: u64) -> Result<PreludeString, PSP34Error> {
         self.token_exists(Id::U64(token_id))?;
-        let base_uri = metadata::PSP34MetadataImpl::get_attribute(
+        let base_uri = PSP34MetadataImpl::get_attribute(
             self,
             PSP34Impl::collection_id(self),
             String::from("baseUri"),
@@ -162,7 +181,7 @@ pub trait PayableMintImpl:
 }
 
 /// Helper trait for PayableMint
-pub trait Internal: Storage<Data> + Storage<psp34::Data> + psp34::Internal {
+pub trait Internal: Storage<Data> + psp34::Internal {
     /// Check if the transferred mint values is as expected
     fn check_value(&self, transferred_value: u128, mint_amount: u64) -> Result<(), PSP34Error> {
         if let Some(value) = (mint_amount as u128).checked_mul(self.data::<Data>().price_per_mint) {
