@@ -21,8 +21,6 @@ pub mod shiden34 {
         *,
     };
 
-    //use openbrush::contracts::psp34::extensions::metadata;
-
     // Shiden34Contract contract storage
     #[ink(storage)]
     #[derive(Default, Storage)]
@@ -87,6 +85,28 @@ pub mod shiden34 {
             instance.payable_mint.max_amount = 1;
             instance
         }
+    }
+
+    // Override event emission methods
+    #[overrider(psp34::Internal)]
+    fn _emit_transfer_event(&self, from: Option<AccountId>, to: Option<AccountId>, id: Id) {
+        self.env().emit_event(Transfer { from, to, id });
+    }
+
+    #[overrider(psp34::Internal)]
+    fn _emit_approval_event(
+        &self,
+        from: AccountId,
+        to: AccountId,
+        id: Option<Id>,
+        approved: bool,
+    ) {
+        self.env().emit_event(Approval {
+            from,
+            to,
+            id,
+            approved,
+        });
     }
 
     // Override event emission methods
