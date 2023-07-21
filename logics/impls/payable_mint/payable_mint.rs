@@ -82,7 +82,6 @@ pub trait PayableMintImpl:
         for mint_id in next_to_mint..mint_offset {
             self._mint_to(to, Id::U64(mint_id))?;
             self.data::<Data>().last_token_id += 1;
-            self._emit_transfer_event(None, Some(to), Id::U64(mint_id));
         }
 
         Ok(())
@@ -100,8 +99,6 @@ pub trait PayableMintImpl:
             .ok_or(PSP34Error::Custom(Shiden34Error::CollectionIsFull.as_str()))?;
         self._mint_to(caller, Id::U64(token_id))?;
         self.data::<Data>().last_token_id += 1;
-
-        self._emit_transfer_event(None, Some(caller), Id::U64(token_id));
 
         Ok(())
     }
