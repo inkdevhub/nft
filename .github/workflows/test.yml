@@ -26,10 +26,10 @@ jobs:
       # hacky way to install rust. Rustup is pre-installed on runners. Calling rustup show will detect the rust-toolchain.toml, and subsequently
       # download the needed toolchain and components.
       run: |
-        rustup toolchain install nightly
+        rustup toolchain install stable
         rustup show
     - name: Check
-      run: cargo +nightly check
+      run: cargo check
 
     - name: Test
-      run: cargo +nightly test
+      run: cargo test
