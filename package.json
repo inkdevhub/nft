@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "dependencies": {
+    "@727-ventures/typechain-types": "^1.1.0",
     "@types/chai": "^4.3.0",
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^8.0.3",
@@ -15,14 +16,12 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^5.1.0",
     "mocha": "10.1.0",
-    "ts-node": "^10.8.0",
-    "@supercolony/typechain-compiler": "^0.5.1-beta.1",
-    "@supercolony/typechain-types": "^0.0.16",
-    "patch-package": "^6.4.7"
+    "patch-package": "^6.4.7",
+    "ts-node": "^10.8.0"
   },
   "scripts": {
-    "compile": "typechain-compiler",
-    "compile:release": "typechain-compiler --release",
+    "compile": "cargo  contract build --manifest-path contracts/shiden34/Cargo.toml && typechain-polkadot --in ./target/ink/shiden34 --out ./typed_contracts",
+    "compile:release": "cargo  contract build --manifest-path contracts/shiden34/Cargo.toml --release && typechain-polkadot --in ./target/ink/shiden34 --out ./typed_contracts",
     "test": "mocha --require ts-node/register --recursive ./tests --extension \".spec.ts\" --exit --timeout 20000",
     "test:single": "mocha --require ts-node/register --extension \".ts\" --exit --timeout 20000",
     "postinstall": "patch-package"
@@ -30,5 +29,9 @@
   "resolutions": {
     "@polkadot/api": "^9.6.1",
     "@polkadot/api-contract": "^9.6.1"
+  },
+  "devDependencies": {
+    "@727-ventures/typechain-compiler": "^1.1.1",
+    "@727-ventures/typechain-polkadot": "^1.1.0"
   }
 }
