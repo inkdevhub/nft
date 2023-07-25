@@ -20,7 +20,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 use ink::prelude::string::{
-    String as PreludeString,
+    String,
     ToString,
 };
 
@@ -34,7 +34,6 @@ use openbrush::{
         AccountId,
         Balance,
         Storage,
-        String,
     },
 };
 
@@ -106,7 +105,7 @@ pub trait PayableMintImpl:
     /// Set new value for the baseUri
     #[ink(message)]
     #[modifiers(only_owner)]
-    fn set_base_uri(&mut self, uri: PreludeString) -> Result<(), PSP34Error> {
+    fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error> {
         let id = PSP34Impl::collection_id(self);
         metadata::Internal::_set_attribute(self, id, String::from("baseUri"), uri);
 
@@ -139,14 +138,14 @@ pub trait PayableMintImpl:
 
     /// Get URI from token ID
     #[ink(message)]
-    fn token_uri(&self, token_id: u64) -> Result<PreludeString, PSP34Error> {
+    fn token_uri(&self, token_id: u64) -> Result<String, PSP34Error> {
         self.token_exists(Id::U64(token_id))?;
         let base_uri = PSP34MetadataImpl::get_attribute(
             self,
             PSP34Impl::collection_id(self),
             String::from("baseUri"),
         );
-        let token_uri = base_uri.unwrap() + &token_id.to_string() + &PreludeString::from(".json");
+        let token_uri = base_uri.unwrap() + &token_id.to_string() + &String::from(".json");
         Ok(token_uri)
     }
 

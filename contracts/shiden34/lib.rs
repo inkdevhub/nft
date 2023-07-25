@@ -135,7 +135,7 @@ pub mod shiden34 {
                 pay_with_call,
                 test,
             },
-            prelude::string::String as PreludeString,
+            prelude::string::String,
         };
         use openbrush::contracts::psp34::PSP34Impl;
         use payable_mint_pkg::impls::payable_mint::{
@@ -336,7 +336,7 @@ pub mod shiden34 {
             assert_eq!(sh34.token_uri(42), Err(TokenNotExists));
             assert_eq!(
                 sh34.token_uri(1),
-                Ok(PreludeString::from(BASE_URI.to_owned() + "1.json"))
+                Ok(String::from(BASE_URI.to_owned() + "1.json"))
             );
 
             // return error if request is for not yet minted token
@@ -344,10 +344,10 @@ pub mod shiden34 {
 
             // verify token_uri when baseUri is empty
             set_sender(accounts.alice);
-            assert!(sh34.set_base_uri(PreludeString::from("")).is_ok());
+            assert!(sh34.set_base_uri(String::from("")).is_ok());
             assert_eq!(
                 sh34.token_uri(1),
-                Ok("".to_owned() + &PreludeString::from("1.json"))
+                Ok("".to_owned() + &String::from("1.json"))
             );
         }
 

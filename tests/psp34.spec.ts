@@ -2,8 +2,8 @@ import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { encodeAddress } from '@polkadot/keyring';
 import BN from 'bn.js';
-import Rmrk_factory from '../typed_contracts/constructors/shiden34';
-import Rmrk from '../typed_contracts/contracts/shiden34';
+import Shiden_factory from '../typed_contracts/constructors/shiden34';
+import Shiden from '../typed_contracts/contracts/shiden34';
 
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
 import type { WeightV2, Weight } from '@polkadot/types/interfaces';
@@ -26,11 +26,11 @@ const wsProvider = new WsProvider('ws://127.0.0.1:9944');
 const keyring = new Keyring({ type: 'sr25519' });
 
 describe('Minting psp34 tokens', () => {
-  let rmrkFactory: Rmrk_factory;
+  let shidenFactory: Shiden_factory;
   let api: ApiPromise;
   let deployer: KeyringPair;
   let bob: KeyringPair;
-  let contract: Rmrk;
+  let contract: Shiden;
 
   const gasLimit = 18750000000;
   const ZERO_ADDRESS = encodeAddress(
@@ -42,8 +42,8 @@ describe('Minting psp34 tokens', () => {
     api = await ApiPromise.create({ provider: wsProvider });
     deployer = keyring.addFromUri('//Alice');
     bob = keyring.addFromUri('//Bob');
-    rmrkFactory = new Rmrk_factory(api, deployer);
-    contract = new Rmrk((await rmrkFactory.new(
+    shidenFactory = new Shiden_factory(api, deployer);
+    contract = new Shiden((await shidenFactory.new(
       'Shiden34',
       'SH34',
       BASE_URI,
@@ -151,8 +151,8 @@ describe('Minting psp34 tokens', () => {
     return api.registry.createType(
       'WeightV2',
       {
-        refTime: gasRequiredV2.refTime.toBn().muln(3),
-        proofSize: gasRequiredV2.proofSize.toBn().muln(3),
+        refTime: gasRequiredV2.refTime.toBn().muln(4),
+        proofSize: gasRequiredV2.proofSize.toBn().muln(4),
       }
     ) as WeightV2;
   }
