@@ -1,4 +1,4 @@
-use ink::prelude::string::String as PreludeString;
+use ink::prelude::string::String;
 
 use openbrush::{
     contracts::psp34::PSP34Error,
@@ -23,10 +23,10 @@ pub trait PayableMint {
 
     /// Set new value for the baseUri
     #[ink(message)]
-    fn set_base_uri(&mut self, uri: PreludeString) -> Result<(), PSP34Error>;
+    fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error>;
 
     /// Withdraws funds to contract owner
-    #[ink(message)]
+
     fn withdraw(&mut self) -> Result<(), PSP34Error>;
 
     /// Set max number of tokens which could be minted per call
@@ -35,7 +35,7 @@ pub trait PayableMint {
 
     /// Get URI from token ID
     #[ink(message)]
-    fn token_uri(&self, token_id: u64) -> Result<PreludeString, PSP34Error>;
+    fn token_uri(&self, token_id: u64) -> Result<String, PSP34Error>;
 
     /// Get max supply of tokens
     #[ink(message)]

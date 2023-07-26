@@ -1,16 +1,16 @@
 [package]
 name = "payable_mint_pkg"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Astar builder"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "~4.0.0", default-features = false}
+ink = { version = "~4.2.1", default-features = false}
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
-scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
+scale-info = { version = "2.6", default-features = false, features = ["derive"], optional = true }
 
-openbrush = { tag = "3.0.0", git = "https://github.com/727-Ventures/openbrush-contracts", default-features = false, features = ["psp34", "ownable", "reentrancy_guard"] }
+openbrush = { tag = "v4.0.0-beta", git = "https://github.com/Brushfam/openbrush-contracts", default-features = false, features = ["psp34", "ownable", "reentrancy_guard"] }
 
 [lib]
 path = "lib.rs"

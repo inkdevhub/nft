@@ -230,4 +230,5 @@ node_modules
 oclif.manifest.json
 artifacts/
 types/
+typed_contracts/
 
