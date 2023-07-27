@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-#[openbrush::implementation(PSP34, Ownable, PSP34Enumerable, PSP34Metadata)]
+#[openbrush::implementation(PSP34, Ownable, PSP34Enumerable, PSP34Metadata, PSP34Mintable)]
 #[openbrush::contract]
 pub mod shiden34 {
     use openbrush::contracts::traits::psp34::extensions::mintable::*;
@@ -19,7 +19,7 @@ pub mod shiden34 {
         enumerable: enumerable::Data,
     }
 
-    #[overrider(PSP34Mintable)]
+    #[overrider(PSP34MintableImpl)]
     #[openbrush::modifiers(only_owner)]
     fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
         psp34::InternalImpl::_mint_to(&mut self, account, id)
