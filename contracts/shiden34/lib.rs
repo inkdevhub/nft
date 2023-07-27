@@ -20,6 +20,7 @@ pub mod shiden34 {
     }
 
     #[overrider(PSP34Mintable)]
+    #[openbrush::modifiers(only_owner)]
     fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
         psp34::InternalImpl::_mint_to(&mut self, account, id)
     }
