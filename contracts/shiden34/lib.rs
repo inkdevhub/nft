@@ -20,8 +20,8 @@ pub mod shiden34 {
     }
 
     #[overrider(PSP34MintableImpl)]
-    #[ink(message, payable)]
-    #[openbrush::modifiers(only_owner)]
+    #[ink(payable)]
+    #[modifiers(only_owner)]
     fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
         if Self::env().transferred_value() != 1_000_000_000_000_000_000 {
             return Err(PSP34Error::Custom(String::from("BadMintValue")))
