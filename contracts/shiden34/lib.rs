@@ -32,8 +32,6 @@ pub mod shiden34 {
         pub fn new() -> Self {
             let mut _instance = Self::default();
             ownable::Internal::_init_with_owner(&mut _instance, Self::env().caller());
-            psp34::Internal::_mint_to(&mut _instance, Self::env().caller(), Id::U8(1))
-                .expect("Can mint");
             let collection_id = psp34::PSP34Impl::collection_id(&_instance);
             metadata::Internal::_set_attribute(
                 &mut _instance,
