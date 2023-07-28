@@ -25,7 +25,7 @@ pub mod shiden34 {
         psp34::InternalImpl::_mint_to(self, account, id)
     }
 
-    impl payable_mint::PayableMintImpl for Shiden34 {}
+   impl payable_mint::PayableMintImpl for Shiden34 {}
 
     impl Shiden34 {
         #[ink(constructor)]
