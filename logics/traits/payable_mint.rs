@@ -1,11 +1,6 @@
 use openbrush::{
-    contracts::{
-        psp34::PSP34Error,
-        psp34::extensions::enumerable::*
-    },
-    traits::{
-        AccountId,
-    },
+    contracts::{psp34::extensions::enumerable::*, psp34::PSP34Error},
+    traits::AccountId,
 };
 
 #[openbrush::wrapper]
