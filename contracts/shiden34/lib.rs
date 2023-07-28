@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-#[openbrush::implementation(PSP34, PSP34Enumerable, PSP34Metadata, Ownable)]
+#[openbrush::implementation(PSP34, PSP34Enumerable, PSP34Metadata, PSP34Mintable, Ownable)]
 #[openbrush::contract]
 pub mod shiden34 {
     use openbrush::traits::Storage;
@@ -16,6 +16,12 @@ pub mod shiden34 {
         metadata: metadata::Data,
         #[storage_field]
         enumerable: enumerable::Data,
+    }
+
+    #[overrider(PSP34Mintable)]
+    #[openbrush::modifiers(only_owner)]
+    fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
+        psp34::InternalImpl::_mint_to(self, account, id)
     }
 
     impl Shiden34 {
@@ -42,7 +48,6 @@ pub mod shiden34 {
         }
 
         #[ink(message, payable)]
-        #[openbrush::modifiers(only_owner)]
         pub fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
             if self.env().transferred_value() != 1_000_000_000_000_000_000 {
                 return Err(PSP34Error::Custom(String::from("BadMintValue")));
