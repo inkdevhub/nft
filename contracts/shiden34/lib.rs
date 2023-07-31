@@ -1,26 +1,23 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-#![feature(min_specialization)]
+#![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+#[openbrush::implementation(PSP34, PSP34Enumerable, PSP34Metadata, PSP34Mintable, Ownable)]
 #[openbrush::contract]
 pub mod shiden34 {
     use ink::codegen::{EmitEvent, Env};
-    use openbrush::{
-        contracts::ownable::*,
-        contracts::psp34::extensions::{enumerable::*, metadata::*},
-        traits::{Storage, String},
-    };
+    use openbrush::traits::Storage;
     use payable_mint_pkg::impls::payable_mint::*;
-    use payable_mint_pkg::traits::payable_mint::*;
 
     #[ink(storage)]
     #[derive(Default, Storage)]
     pub struct Shiden34 {
         #[storage_field]
-        psp34: psp34::Data<enumerable::Balances>,
+        psp34: psp34::Data,
         #[storage_field]
         ownable: ownable::Data,
         #[storage_field]
         metadata: metadata::Data,
+        #[storage_field]
+        enumerable: enumerable::Data,
         #[storage_field]
         payable_mint: types::Data,
     }
@@ -48,32 +45,30 @@ pub mod shiden34 {
         approved: bool,
     }
 
-    impl PSP34 for Shiden34 {}
-    impl Ownable for Shiden34 {}
-    impl PSP34Enumerable for Shiden34 {}
-    impl PSP34Metadata for Shiden34 {}
-    impl PayableMint for Shiden34 {}
-
-    impl psp34::Internal for Shiden34 {
-        fn _emit_transfer_event(&self, from: Option<AccountId>, to: Option<AccountId>, id: Id) {
-            self.env().emit_event(Transfer { from, to, id });
-        }
-
-        fn _emit_approval_event(
-            &self,
-            from: AccountId,
-            to: AccountId,
-            id: Option<Id>,
-            approved: bool,
-        ) {
-            self.env().emit_event(Approval {
-                from,
-                to,
-                id,
-                approved,
-            });
-        }
+    #[overrider(PSP34Mintable)]
+    #[openbrush::modifiers(only_owner)]
+    fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
+        psp34::InternalImpl::_mint_to(self, account, id)
     }
+
+    // Override event emission methods
+    #[overrider(psp34::Internal)]
+    fn _emit_transfer_event(&self, from: Option<AccountId>, to: Option<AccountId>, id: Id) {
+        self.env().emit_event(Transfer { from, to, id });
+    }
+
+    #[overrider(psp34::Internal)]
+    fn _emit_approval_event(&self, from: AccountId, to: AccountId, id: Option<Id>, approved: bool) {
+        self.env().emit_event(Approval {
+            from,
+            to,
+            id,
+            approved,
+        });
+    }
+
+    impl payable_mint_pkg::impls::payable_mint::payable_mint::Internal for Shiden34 {}
+    impl payable_mint::PayableMintImpl for Shiden34 {}
 
     impl Shiden34 {
         #[ink(constructor)]
@@ -85,11 +80,27 @@ pub mod shiden34 {
             price_per_mint: Balance,
         ) -> Self {
             let mut instance = Self::default();
-            instance._init_with_owner(instance.env().caller());
-            let collection_id = instance.collection_id();
-            instance._set_attribute(collection_id.clone(), String::from("name"), name);
-            instance._set_attribute(collection_id.clone(), String::from("symbol"), symbol);
-            instance._set_attribute(collection_id, String::from("baseUri"), base_uri);
+            let caller = instance.env().caller();
+            ownable::InternalImpl::_init_with_owner(&mut instance, caller);
+            let collection_id = psp34::PSP34Impl::collection_id(&instance);
+            metadata::InternalImpl::_set_attribute(
+                &mut instance,
+                collection_id.clone(),
+                String::from("name"),
+                name,
+            );
+            metadata::InternalImpl::_set_attribute(
+                &mut instance,
+                collection_id.clone(),
+                String::from("symbol"),
+                symbol,
+            );
+            metadata::InternalImpl::_set_attribute(
+                &mut instance,
+                collection_id,
+                String::from("baseUri"),
+                base_uri,
+            );
             instance.payable_mint.max_supply = max_supply;
             instance.payable_mint.price_per_mint = price_per_mint;
             instance.payable_mint.last_token_id = 0;
@@ -124,20 +135,37 @@ pub mod shiden34 {
             set_sender(accounts.bob);
             let num_of_mints: u64 = 5;
 
-            assert_eq!(sh34.total_supply(), 0);
+            assert_eq!(PSP34Impl::total_supply(&sh34), 0);
             test::set_value_transferred::<ink::env::DefaultEnvironment>(
                 PRICE * num_of_mints as u128,
             );
-            assert!(sh34.mint(accounts.bob, num_of_mints).is_ok());
-            assert_eq!(sh34.total_supply(), num_of_mints as u128);
-            assert_eq!(sh34.balance_of(accounts.bob), 5);
-            assert_eq!(sh34.owners_token_by_index(accounts.bob, 0), Ok(Id::U64(1)));
-            assert_eq!(sh34.owners_token_by_index(accounts.bob, 1), Ok(Id::U64(2)));
-            assert_eq!(sh34.owners_token_by_index(accounts.bob, 2), Ok(Id::U64(3)));
-            assert_eq!(sh34.owners_token_by_index(accounts.bob, 3), Ok(Id::U64(4)));
-            assert_eq!(sh34.owners_token_by_index(accounts.bob, 4), Ok(Id::U64(5)));
+            assert!(
+                payable_mint::PayableMintImpl::mint(&mut sh34, accounts.bob, num_of_mints).is_ok()
+            );
+            assert_eq!(PSP34Impl::total_supply(&sh34), num_of_mints as u128);
+            assert_eq!(PSP34Impl::balance_of(&sh34, accounts.bob), 5);
             assert_eq!(
-                sh34.owners_token_by_index(accounts.bob, 5),
+                PSP34EnumerableImpl::owners_token_by_index(&sh34, accounts.bob, 0),
+                Ok(Id::U64(1))
+            );
+            assert_eq!(
+                PSP34EnumerableImpl::owners_token_by_index(&sh34, accounts.bob, 1),
+                Ok(Id::U64(2))
+            );
+            assert_eq!(
+                PSP34EnumerableImpl::owners_token_by_index(&sh34, accounts.bob, 2),
+                Ok(Id::U64(3))
+            );
+            assert_eq!(
+                PSP34EnumerableImpl::owners_token_by_index(&sh34, accounts.bob, 3),
+                Ok(Id::U64(4))
+            );
+            assert_eq!(
+                PSP34EnumerableImpl::owners_token_by_index(&sh34, accounts.bob, 4),
+                Ok(Id::U64(5))
+            );
+            assert_eq!(
+                PSP34EnumerableImpl::owners_token_by_index(&sh34, accounts.bob, 5),
                 Err(TokenNotExists)
             );
             assert_eq!(5, ink::env::test::recorded_events().count());
