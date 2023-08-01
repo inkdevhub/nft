@@ -1,9 +1,7 @@
 use crate::impls::payable_mint::types::Data;
 use ink::prelude::string::ToString;
 use openbrush::contracts::{
-    ownable,
-    ownable::only_owner,
-    psp34,
+    ownable, psp34,
     psp34::{
         extensions::{
             metadata,
@@ -14,7 +12,6 @@ use openbrush::contracts::{
 };
 use openbrush::traits::{AccountId, Balance, Storage, String};
 
-#[openbrush::trait_definition]
 pub trait PayableMintImpl:
     Storage<Data>
     + Storage<psp34::Data>
@@ -26,7 +23,6 @@ pub trait PayableMintImpl:
     + psp34::extensions::metadata::Internal
     + PSP34MetadataImpl
 {
-    #[ink(message, payable)]
     fn mint(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error> {
         self.check_value(Self::env().transferred_value(), mint_amount)?;
         self.check_amount(mint_amount)?;
@@ -43,8 +39,6 @@ pub trait PayableMintImpl:
     }
 
     /// Set new value for the baseUri
-    #[ink(message)]
-    #[openbrush::modifiers(only_owner)]
     fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error> {
         let id = PSP34Impl::collection_id(self);
         metadata::Internal::_set_attribute(self, id, String::from("baseUri"), uri);
@@ -53,7 +47,6 @@ pub trait PayableMintImpl:
     }
 
     /// Get URI from token ID
-    #[ink(message)]
     fn token_uri(&self, token_id: u64) -> Result<String, PSP34Error> {
         self.token_exists(Id::U64(token_id))?;
         let base_uri = PSP34MetadataImpl::get_attribute(
@@ -66,8 +59,6 @@ pub trait PayableMintImpl:
     }
 
     /// Withdraws funds to contract owner
-    #[ink(message)]
-    #[openbrush::modifiers(only_owner)]
     fn withdraw(&mut self) -> Result<(), PSP34Error> {
         let balance = Self::env().balance();
         let current_balance = balance
@@ -81,13 +72,11 @@ pub trait PayableMintImpl:
     }
 
     /// Get max supply of tokens
-    #[ink(message)]
     fn max_supply(&self) -> u64 {
         self.data::<Data>().max_supply
     }
 
     /// Get token price
-    #[ink(message)]
     fn price(&self) -> Balance {
         self.data::<Data>().price_per_mint
     }

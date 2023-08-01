@@ -6,6 +6,7 @@ pub mod shiden34 {
     use ink::codegen::{EmitEvent, Env};
     use openbrush::traits::Storage;
     use payable_mint_pkg::impls::payable_mint::*;
+    use payable_mint_pkg::traits::payable_mint::*;
 
     #[ink(storage)]
     #[derive(Default, Storage)]
@@ -45,12 +46,6 @@ pub mod shiden34 {
         approved: bool,
     }
 
-    #[overrider(PSP34Mintable)]
-    #[openbrush::modifiers(only_owner)]
-    fn mint(&mut self, account: AccountId, id: Id) -> Result<(), PSP34Error> {
-        psp34::InternalImpl::_mint_to(self, account, id)
-    }
-
     // Override event emission methods
     #[overrider(psp34::Internal)]
     fn _emit_transfer_event(&self, from: Option<AccountId>, to: Option<AccountId>, id: Id) {
@@ -67,8 +62,43 @@ pub mod shiden34 {
         });
     }
 
-    impl payable_mint_pkg::impls::payable_mint::payable_mint::Internal for Shiden34 {}
+    impl payable_mint::Internal for Shiden34 {}
+
     impl payable_mint::PayableMintImpl for Shiden34 {}
+
+    impl PayableMint for Shiden34 {
+        #[ink(message, payable)]
+        fn mint(&mut self, to: AccountId, mint_amount: u64) -> Result<(), PSP34Error> {
+            payable_mint::PayableMintImpl::mint(self, to, mint_amount)
+        }
+
+        #[ink(message)]
+        #[openbrush::modifiers(only_owner)]
+        fn set_base_uri(&mut self, uri: String) -> Result<(), PSP34Error> {
+            payable_mint::PayableMintImpl::set_base_uri(self, uri)
+        }
+
+        #[ink(message)]
+        fn token_uri(&self, token_id: u64) -> Result<String, PSP34Error> {
+            payable_mint::PayableMintImpl::token_uri(self, token_id)
+        }
+
+        #[ink(message)]
+        #[openbrush::modifiers(only_owner)]
+        fn withdraw(&mut self) -> Result<(), PSP34Error> {
+            payable_mint::PayableMintImpl::withdraw(self)
+        }
+
+        #[ink(message)]
+        fn max_supply(&self) -> u64 {
+            payable_mint::PayableMintImpl::max_supply(self)
+        }
+
+        #[ink(message)]
+        fn price(&self) -> Balance {
+            payable_mint::PayableMintImpl::price(self)
+        }
+    }
 
     impl Shiden34 {
         #[ink(constructor)]
